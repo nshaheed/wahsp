@@ -38,13 +38,35 @@ import qualified Text.Read.Lex as L
 import qualified Web.Scotty.Comet as KC
 import Web.Scotty
 
+-- WORKING EXAMPLE
+-- main :: IO ()
+-- main = do
+--   webAudio 3000 $ \doc -> do
+--     send doc $ do
+--       _ <- createOscillator 400 0 Sine
+--       _ <- createOscillator 404 4 Sine
+--       return ()
+
+main :: IO ()
+main = do
+  webAudio 3000 $ \doc -> do
+    send doc $ do
+      _ <- createOscillator 400 0 Sine
+      _ <- createOscillator 404 4 Sine
+      return ()
+    -- sendApp doc $ WebAudio $ do
+    --   createOscillator 400 0 Sine
+    --   return ()
+  -- kcomet <- KC.kCometPlugin
+
+  
 data Command :: * where
   -- CreateOscillator :: OscillatorNode -> Command
 
 data Procedure :: * -> * where
-  Dummy :: Procedure Int
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
-  
+
+-- | And AudioNode is an interface for any audio processing module in the Web Audio API
 class AudioNode a where
   jsAudioNode           :: a -> T.Text
   numberOfInputs        :: a -> Int
@@ -98,8 +120,6 @@ class JSArg a where
 instance JSArg OscillatorNode where
   showJS = jsOscillatorNode
 
---  showi (NewImage url') = "NewImage(" <> jsText url' <> singleton ')'
--- (CreateOscillator ..) = "
 jsOscillatorNode :: OscillatorNode -> T.Text
 jsOscillatorNode (OscillatorNode n _ _ _ _ _ _ _ _) = "audios[" <> tshow n <> "]"
 
@@ -129,14 +149,16 @@ instance FromJSON ChannelInterpretation where
       "discrete" -> return Discrete
       _          -> fail "Parsing ChannelInterpretation value failed: expected \"speakers\", or \"discrete\""  
 
-createOscillator :: Double -> Double -> OscillatorNodeType -> RemoteMonad Command Procedure OscillatorNode
-createOscillator freq det osctype = procedure (CreateOscillator freq det osctype)
+-- | creates an oscillator with a frequency (in hertz), a detuning value (in cents), and an OscillatorNodeType (e.g. a sine wave, square wave, etc.)
+createOscillator :: Double -> Double -> OscillatorNodeType -> WebAudio OscillatorNode 
+-- createOscillator :: Double -> Double -> OscillatorNodeType -> RemoteMonad Command Procedure OscillatorNode
+createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq det osctype)
 
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
 
-send :: KC.Document -> RemoteMonad Command Procedure a -> IO a
-send kcdoc actions = sendApp kcdoc (WebAudio actions)
+send :: KC.Document -> WebAudio a -> IO a
+send = sendApp
 
 sendApp :: KC.Document -> WebAudio a -> IO a
 sendApp d (WebAudio m) = (run $ runMonad $ nat (runAP d)) m
@@ -153,9 +175,6 @@ runAP d pkt =
     Nothing -> case pkt of
       AP.Command cmd -> undefined -- do KC.send d (formatCommand cmd)
       AP.Procedure p -> sendProcedure d p ""
-
---  KC.send (theComet cxt) . toStrict . toLazyText $ surround "syncToFrame(function(){" "});" <> cmds
---  send' $ cmds <> showi query <> singleton '(' <> showi uq <> singleton ',' <> jsCanvasContext c <> ");"
 
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
@@ -174,23 +193,7 @@ parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 uncurry9 :: (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> b) ->
             (a1, a2, a3, a4, a5, a6, a7, a8, a9) -> b
 uncurry9 f (a1, a2, a3, a4, a5, a6, a7, a8, a9) = f a1 a2 a3 a4 a5 a6 a7 a8 a9
---   where
---     formatPackets :: ApplicativePacket Command Procedure a -> T.Text -> T.Text
---     formatPackets pakt cmds = T.unlines[formatPacket pakt,cmds]
-      
---     formatPacket :: ApplicativePacket Command Procedure a -> T.Text
---     formatPacket pakt =
---       case pakt of
---         AP.Command cmd -> formatCommand cmd
---         AP.Procedure (Dummy) -> " "
 
---     formatCommand :: Command -> T.Text
---     formatCommand (CreateOscillator (OscillatorNode freq det wave)) =
---       T.unlines [T.concat ["osc.frequency.value = ", T.pack . show $ freq, ";"],
---                  T.concat ["osc.detune.value = ",T.pack . show $ det,";"],
---                  T.concat ["osc.type = '" , T.pack . show $ wave , "';"]
---                 ]
--- runWA d (RemoteMonad Command Procedure a ) =
   
 -- runWA 
 -- sendWP :: KC.Document -> WeakPacket Command Procedure a -> IO a
@@ -208,36 +211,6 @@ uncurry9 f (a1, a2, a3, a4, a5, a6, a7, a8, a9) = f a1 a2 a3 a4 a5 a6 a7 a8 a9
 -- sendWeak KC.Document -> [Text] -> IO ()
 -- sendWeak docs cmds = KC.send docs (unlines cmds)
 
-main :: IO ()
-main = do
-  webAudio 3000 $ \doc -> do
-    send doc $ do
-      _ <- createOscillator 400 0 Sine
-      _ <- createOscillator 404 4 Sine
-      return ()
-    -- sendApp doc $ WebAudio $ do
-    --   createOscillator 400 0 Sine
-    --   return ()
-  -- kcomet <- KC.kCometPlugin
-
-  -- let pol = only [ ("","index.html")
-  --                , ("js/kansas-comet.js",kcomet)
-  --                ]
-  --       <|> (hasPrefix "js/") >-> addBase "."
-
-  -- connectApp <- KC.connect opts $ \kc_doc -> do
-  --   sendApp kc_doc $ WebAudio $ do
-  --     -- APP.procedure $ CreateOscillator 400 0 Sine
-  --     osc <- createOscillator 400 0 Sine
-  --     traceShow osc $ return ()
-  --     return ()
-      
-
-  -- scotty 3000 $ do
-  --   middleware $ staticPolicy pol
-  --   connectApp
-    
-  -- return()
 
 webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
 webAudio opts actions = do
@@ -264,10 +237,6 @@ webAudio opts actions = do
     
   return()
   
--- opts :: KC.Options
--- opts = def { KC.prefix = "/example"}
--- opts = KC.Options { prefix = "/example"}
-
 data WAOptions = WAOptions
   { port          :: Int,
     events        :: [Int], -- not implemented yet, blank canvas uses [EventName],
@@ -290,25 +259,6 @@ instance Num WAOptions where
                             root = "." ,
                             weak = False
                           }
-
-test :: KC.Document -> IO ()
-test doc = do
-  putStrLn "in test"
-  -- KC. doc "testOsc()"
-  -- oscType doc Sawtooth
-  -- KC.send doc "osc.start();" -- both work
-  -- sendApp doc (WebAudio (createOscillator (oscillatorNode 220 0 Square)))
-  -- KC.send doc "osc.start();" -- both work
-  -- KC.send doc "console.log(\"test\");"
-  -- KC.send doc "var osc1 = audioCtx.createOscillator();"
-  -- KC.send doc (T.unlines ["osc1.frequency.value = 350;",
-  --                        "console.log(osc1.frequency.value);",
-  --                        "osc1.start();"
-  --                        ])
-  -- KC.send doc "testE();"
-  -- KC.send doc "osc.start();"
-  -- KC.send doc "console.log(osc1.frequency.value;"
-  return ()
 
 oscType :: KC.Document -> OscillatorNodeType -> IO ()
 oscType doc t = do
@@ -350,9 +300,7 @@ instance FromJSON OscillatorNodeType where
       "custom"   -> return Custom      
       _ -> fail "Parsing OscillatorNodeType value failed: expected \"sine\", \"square\", \"sawtooth\", \"Triangel\", or \"custom\""
 
--- | OscillatorNode with the frequency, detuning, and OscillatorNodeType
--- data OscillatorNode = OscillatorNode !Int !Double !Double !OscillatorNodeType
---      deriving (Read, Show, Eq)
+-- | OscillatorNode represents a periodic waveform with a frequency (in hertz), detuning (in cents), an OscillatorNodeType (e.g. a sine wave, square wave, etc.), etc.
 
 data OscillatorNode = OscillatorNode {
   index                    :: !Int,
@@ -367,15 +315,6 @@ data OscillatorNode = OscillatorNode {
 }
   deriving (Read,Show,Eq)                      
   
--- oscillatorNode :: Double -> Double -> OscillatorNodeType -> OscillatorNode
--- oscillatorNode = OscillatorNode
-
--- start :: OscillatorNode -> Double -> IO ()
-
--- sendToCanvas :: DeviceContext -> Instr -> IO ()
--- sendToCanvas cxt cmds = do
---       KC.send (theComet cxt) . toStrict . toLazyText $ surround "syncToFrame(function(){"  "});" <> cmds
-
 tshow :: Show a => a -> T.Text
 tshow a = T.pack $ show a
 
