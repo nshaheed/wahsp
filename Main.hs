@@ -71,8 +71,8 @@ data Command :: * where
   Start :: OscillatorNode -> Command
   StartWhen :: OscillatorNode -> Double -> Command
   Stop :: OscillatorNode -> Command
-  StopWhen :: OscillatorNode -> Double -> Command  
-  -- CreateOscillator :: OscillatorNode -> Command
+  StopWhen :: OscillatorNode -> Double -> Command
+  Connect :: AudioNode a => a -> a -> Command
 
 data Procedure :: * -> * where
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
@@ -88,13 +88,20 @@ class AudioNode a where
 
 -- | Instantizes OscillatorNode with the default values
 instance AudioNode OscillatorNode where
-  jsAudioNode           = showJS
+  jsAudioNode           = showtJS
   numberOfInputs        = numberOfInputsOsc
   numberOfOutputs       = numberOfOutputsOsc
   channelCount          = channelCountOsc
   channelCountMode      = channelCountModeOsc
   channelInterpretation = channelInterpretationOsc
-    
+
+-- the audio context, this is pre-existing in the js, and only one is needed
+data AudioContext = AudioContext
+  deriving (Eq)
+
+instance Show AudioContext where
+  show AudioContext = "audioCtx"
+
 data ChannelCountMode = Max | ClampedMax | Explicit
   deriving (Eq)
 
@@ -126,13 +133,16 @@ instance FromJSON ChannelCountMode where
   
 class JSArg a where
       -- | Display a value as JavaScript data.
-      showJS :: a -> T.Text
+      showtJS :: a -> T.Text
 
 instance JSArg OscillatorNode where
-  showJS = jsOscillatorNode
+  showtJS = jsOscillatorNode
+
+instance JSArg AudioContext where
+  showtJS a = tshow a
 
 jsOscillatorNode :: OscillatorNode -> T.Text
-jsOscillatorNode (OscillatorNode n _ _ _ _ _ _ _ _) = "audios[" <> tshow n <> "]"
+jsOscillatorNode (OscillatorNode n _ _ _ _ _ _ _ _) = "sounds[" <> tshow n <> "]"
 
 data ChannelInterpretation = Speakers | Discrete
   deriving (Eq)
@@ -171,14 +181,19 @@ start = WebAudio . command . Start
 
 -- wait t seconds to start playing the oscillator
 startWhen :: OscillatorNode -> Double -> WebAudio ()
-startWhen o = WebAudio . command . StartWhen o
+startWhen o t = WebAudio . command $ StartWhen o t
 
 -- stop oscillator
 stop :: OscillatorNode -> WebAudio ()
 stop = WebAudio . command . Stop
 
+-- wait t seconds before stopping the oscillator
 stopWhen :: OscillatorNode -> Double -> WebAudio ()
-stopWhen o = WebAudio . command . StopWhen o
+stopWhen o t = WebAudio . command $ StopWhen o t
+
+-- connect n1 to n2. note: does not return reference to connected node like in js web audio api
+connect :: AudioNode a => a -> a -> WebAudio ()
+connect n1 n2 = WebAudio . command $ Connect n1 n2
 
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
@@ -236,10 +251,11 @@ parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 -- sendCommand doc cmd = KC.send (formatCommand cmd)
 
 formatCommand :: Command -> T.Text -> IO T.Text
-formatCommand (Start osc) cmds = return $ "sounds[" <> tshow (index osc) <> "].start();" <> cmds
-formatCommand (StartWhen osc t) cmds = return $ "sounds[" <> tshow (index osc) <> "].start(" <> tshow t <> ");" <> cmds
-formatCommand (Stop osc) cmds = return $ "sounds[" <> tshow (index osc) <> "].stop();" <> cmds
-formatCommand (StopWhen osc t) cmds = return $ "sounds[" <> tshow (index osc) <> "].stop(" <> tshow t <> ");" <> cmds
+formatCommand (Start osc) cmds       = return $ jsAudioNode osc <> ".start();" <> cmds
+formatCommand (StartWhen osc t) cmds = return $ jsAudioNode osc <> ".start(" <> tshow t <> ");" <> cmds
+formatCommand (Stop osc) cmds        = return $ jsAudioNode osc <> ".stop();" <> cmds
+formatCommand (StopWhen osc t) cmds  = return $ jsAudioNode osc <> ".stop(" <> tshow t <> ");" <> cmds
+formatCommand (Connect n1 n2) cmds   = return $ jsAudioNode n1 <> ".connect(" <> jsAudioNode n2 <> ");" <> cmds
 
 -- yeah it's gross
 uncurry9 :: (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> b) ->
@@ -364,6 +380,7 @@ data OscillatorNode = OscillatorNode {
   
 tshow :: Show a => a -> T.Text
 tshow a = T.pack $ show a
+
 
 {-# NOINLINE uniqVar #-}
 uniqVar :: TVar Int
