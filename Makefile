@@ -1,8 +1,8 @@
 all:
-	ghc -threaded -Wall intial_tests.hs
+	ghc -threaded Main.hs
 
 run: all
-	./intial_tests
+	./Main
 
 clean:
 	rm *.o

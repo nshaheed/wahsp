@@ -23,37 +23,42 @@
 
         <script type="text/javascript">
 
-	  <!-- var audioCtx = new (window.AudioContext || window.webkitAudioContext)();	   -->
-	  <!-- var osc = audioCtx.createOscillator(); -->
+	  // You only really need one audio context
+	  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+	  var sounds = [];
+	  
+	  <!-- console.log("starting..."); -->
+	  <!-- // create web audio api context -->
+	  <!-- var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); -->
+
+	  <!-- // create Oscillator and gain node -->
+	  <!-- var oscillator = audioCtx.createOscillator(); -->
 	  <!-- var gainNode = audioCtx.createGain(); -->
 
-	  <!-- osc.connect(gainNode); -->
-	  <!-- gainNode.connect(audioCtx.destination); // <\!-- identity? -\-> -->
+	  <!-- // connect oscillator to gain node to speakers -->
 
-	  <!-- osc.type = 'sine'; -->
-	  <!-- osc.frequency.value = 440; -->
-	  <!-- // <\!-- osc.detune.value = 10.5 -\-> -->
-	  <!-- osc.start(); -->
+	  <!-- oscillator.connect(gainNode); -->
+	  <!-- gainNode.connect(audioCtx.destination); -->
 
-	  <!-- function testE() { -->
-	  console.log("starting...");
-	  // create web audio api context
-	  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+	  <!-- oscillator.frequency.value = 400; -->
 
-	  // create Oscillator and gain node
-	  var oscillator = audioCtx.createOscillator();
-	  var gainNode = audioCtx.createGain();
+	  <!-- oscillator.start(); -->
 
-	  // connect oscillator to gain node to speakers
-
-	  oscillator.connect(gainNode);
-	  gainNode.connect(audioCtx.destination);
-
-	  oscillator.frequency.value = 400;
-
-	  oscillator.start();
-	  <!-- } -->
-	  
+          function CreateOscillator(freq,det,osctype) {
+	      return function(u) {
+		  var osc		= audioCtx.createOscillator();
+		  osc.frequency.value	= freq;
+		  osc.detune.value	= det;
+		  osc.type		= osctype;
+		  
+		  var count		= sounds.push(osc);
+		  $.kc.reply(u,[count - 1,osc.frequency.value, osc.detune.value,osc.type,
+				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
+				osc.channelCountMode, osc.channelInterprtation
+		  	       ]);
+		  // $.kc.reply(u,[count - 1]);		  
+	      }
+	  }
 	  function testOsc() {
 	    osc.start();
 	  }
