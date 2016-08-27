@@ -5,6 +5,11 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+-- to add a command:
+-- add to Command data type
+-- create a function -> WebAudio ()
+-- add pattern to formatCommand
+
 -- what I want to do:
 -- send over to js (map to web audio functionality)
 
@@ -64,6 +69,9 @@ main = do
   
 data Command :: * where
   Start :: OscillatorNode -> Command
+  StartWhen :: OscillatorNode -> Double -> Command
+  Stop :: OscillatorNode -> Command
+  StopWhen :: OscillatorNode -> Double -> Command  
   -- CreateOscillator :: OscillatorNode -> Command
 
 data Procedure :: * -> * where
@@ -157,8 +165,20 @@ createOscillator :: Double -> Double -> OscillatorNodeType -> WebAudio Oscillato
 -- createOscillator :: Double -> Double -> OscillatorNodeType -> RemoteMonad Command Procedure OscillatorNode
 createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq det osctype)
 
+-- start oscillator
 start :: OscillatorNode -> WebAudio ()
-start osc = WebAudio $ command (Start osc)
+start = WebAudio . command . Start
+
+-- wait t seconds to start playing the oscillator
+startWhen :: OscillatorNode -> Double -> WebAudio ()
+startWhen o = WebAudio . command . StartWhen o
+
+-- stop oscillator
+stop :: OscillatorNode -> WebAudio ()
+stop = WebAudio . command . Stop
+
+stopWhen :: OscillatorNode -> Double -> WebAudio ()
+stopWhen o = WebAudio . command . StopWhen o
 
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
@@ -178,16 +198,24 @@ runAP d pkt =
       traceShow cmds $ KC.send d cmds
       return a
     Nothing -> case pkt of
-      AP.Command cmd -> do -- is only commands
+      AP.Command cmd -> do
        cmds <- formatCommand cmd ""
        trace "supercommand Nothing" $ KC.send d cmds
       AP.Procedure p -> sendProcedure d p ""
-
+      AP.Zip f g h   -> f <$> runAP d g <*> runAP d h
+      AP.Pure p      -> pure p
+      
   where
     handlePacket :: KC.Document -> ApplicativePacket Command Procedure a -> T.Text -> IO T.Text
     handlePacket doc pkt cmds =
       case pkt of
         AP.Command cmd -> formatCommand cmd cmds
+        AP.Procedure p -> return cmds
+        AP.Pure a      -> return cmds
+        AP.Zip f g h   -> do
+          gcmds <- handlePacket doc g cmds
+          hcmds <- handlePacket doc h gcmds
+          return hcmds
         
 -- refactor to be easier to add stuff
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
@@ -209,6 +237,9 @@ parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds = return $ "sounds[" <> tshow (index osc) <> "].start();" <> cmds
+formatCommand (StartWhen osc t) cmds = return $ "sounds[" <> tshow (index osc) <> "].start(" <> tshow t <> ");" <> cmds
+formatCommand (Stop osc) cmds = return $ "sounds[" <> tshow (index osc) <> "].stop();" <> cmds
+formatCommand (StopWhen osc t) cmds = return $ "sounds[" <> tshow (index osc) <> "].stop(" <> tshow t <> ");" <> cmds
 
 -- yeah it's gross
 uncurry9 :: (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> b) ->
@@ -246,11 +277,6 @@ webAudio opts actions = do
   
   connectApp <- KC.connect kcopts $ \kc_doc -> do
     actions kc_doc
-    -- sendApp kc_doc $ WebAudio $ actions
-      -- osc <- createOscillator 400 0 Sine
-      -- traceShow osc $ return ()
-      -- return ()
-      
 
   scotty (port opts) $ do
     middleware $ staticPolicy pol

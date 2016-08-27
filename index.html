@@ -52,6 +52,10 @@
 		  osc.type		= osctype;
 		  
 		  var count		= sounds.push(osc);
+		  // var gainNode = audioCtx.createGain();
+		  // sounds[count-1].connect(gainNode);
+		  
+		  // gainNode.connect(audioCtx.destination);
 		  
 		  $.kc.reply(u,[count - 1,osc.frequency.value, osc.detune.value,osc.type,
 				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
