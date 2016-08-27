@@ -135,6 +135,9 @@ createOscillator freq det osctype = procedure (CreateOscillator freq det osctype
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
 
+send :: KC.Document -> RemoteMonad Command Procedure a -> IO a
+send kcdoc actions = sendApp kcdoc (WebAudio actions)
+
 sendApp :: KC.Document -> WebAudio a -> IO a
 sendApp d (WebAudio m) = (run $ runMonad $ nat (runAP d)) m
 
@@ -207,6 +210,37 @@ uncurry9 f (a1, a2, a3, a4, a5, a6, a7, a8, a9) = f a1 a2 a3 a4 a5 a6 a7 a8 a9
 
 main :: IO ()
 main = do
+  webAudio 3000 $ \doc -> do
+    send doc $ do
+      _ <- createOscillator 400 0 Sine
+      _ <- createOscillator 404 4 Sine
+      return ()
+    -- sendApp doc $ WebAudio $ do
+    --   createOscillator 400 0 Sine
+    --   return ()
+  -- kcomet <- KC.kCometPlugin
+
+  -- let pol = only [ ("","index.html")
+  --                , ("js/kansas-comet.js",kcomet)
+  --                ]
+  --       <|> (hasPrefix "js/") >-> addBase "."
+
+  -- connectApp <- KC.connect opts $ \kc_doc -> do
+  --   sendApp kc_doc $ WebAudio $ do
+  --     -- APP.procedure $ CreateOscillator 400 0 Sine
+  --     osc <- createOscillator 400 0 Sine
+  --     traceShow osc $ return ()
+  --     return ()
+      
+
+  -- scotty 3000 $ do
+  --   middleware $ staticPolicy pol
+  --   connectApp
+    
+  -- return()
+
+webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
+webAudio opts actions = do
   kcomet <- KC.kCometPlugin
 
   let pol = only [ ("","index.html")
@@ -214,23 +248,48 @@ main = do
                  ]
         <|> (hasPrefix "js/") >-> addBase "."
 
-  connectApp <- KC.connect opts $ \kc_doc -> do
-    sendApp kc_doc $ WebAudio $ do
-      -- APP.procedure $ CreateOscillator 400 0 Sine
-      osc <- createOscillator 400 0 Sine
-      traceShow osc $ return ()
-      return ()
+  let kcopts = KC.Options {KC.prefix = "/example", KC.verbose = if debug opts then 3 else 0}
+  
+  connectApp <- KC.connect kcopts $ \kc_doc -> do
+    actions kc_doc
+    -- sendApp kc_doc $ WebAudio $ actions
+      -- osc <- createOscillator 400 0 Sine
+      -- traceShow osc $ return ()
+      -- return ()
       
 
-  scotty 3000 $ do
+  scotty (port opts) $ do
     middleware $ staticPolicy pol
     connectApp
     
   return()
-
-opts :: KC.Options
-opts = def { KC.prefix = "/example"}
+  
+-- opts :: KC.Options
+-- opts = def { KC.prefix = "/example"}
 -- opts = KC.Options { prefix = "/example"}
+
+data WAOptions = WAOptions
+  { port          :: Int,
+    events        :: [Int], -- not implemented yet, blank canvas uses [EventName],
+    debug         :: Bool,
+    root          :: String, -- location of static files
+    -- middleware :: [KC.Middleware],
+    weak          :: Bool
+  }
+
+-- webaudio options
+instance Num WAOptions where
+  (+)           = error "No arith. in WAOptions"
+  (-)           = error "No arith. in WAOptions"
+  (*)           = error "No arith. in WAOptions"
+  abs           = error "No arith. in WAOptions"  
+  signum        = error "No arith. in WAOptions"
+  fromInteger n = WAOptions { port = fromInteger n ,
+                            events = [] ,
+                            debug = False,
+                            root = "." ,
+                            weak = False
+                          }
 
 test :: KC.Document -> IO ()
 test doc = do
