@@ -12,7 +12,7 @@
 
 import Control.Concurrent.STM
 import Control.Natural
-import Control.Remote.Applicative as APP
+import qualified Control.Remote.Applicative as APP
 import Control.Remote.Monad
 import Control.Remote.Monad.Packet.Weak as WP
 import Control.Remote.Monad.Packet.Strong as SP
@@ -25,6 +25,8 @@ import Data.Char
 import Data.Default.Class
 import Data.Monoid ((<>))
 import qualified Data.Text as T
+
+import Debug.Trace
 
 import Network.Wai.Middleware.Static
 
@@ -126,8 +128,9 @@ instance FromJSON ChannelInterpretation where
       "speakers" -> return Speakers
       "discrete" -> return Discrete
       _          -> fail "Parsing ChannelInterpretation value failed: expected \"speakers\", or \"discrete\""  
--- createOscillator :: OscillatorNode -> RemoteMonad Command Procedure ()
--- createOscillator o = command (CreateOscillator o)
+
+createOscillator :: Double -> Double -> OscillatorNodeType -> RemoteMonad Command Procedure OscillatorNode
+createOscillator freq det osctype = procedure (CreateOscillator freq det osctype)
 
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
@@ -154,8 +157,8 @@ runAP d pkt =
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
   uq <- atomically getUniq
-  KC.send d $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> "," <> tshow nodetype <> ")(" <>
-    tshow uq <> "," <> ");"
+  KC.send d $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
+    tshow nodetype <> "')(" <> tshow uq <> ");"
   v <- KC.getReply d uq
   case parse (parseProcedure p) v of
     Error msg -> fail msg
@@ -164,6 +167,7 @@ sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 
+-- yeah it's gross
 uncurry9 :: (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> b) ->
             (a1, a2, a3, a4, a5, a6, a7, a8, a9) -> b
 uncurry9 f (a1, a2, a3, a4, a5, a6, a7, a8, a9) = f a1 a2 a3 a4 a5 a6 a7 a8 a9
@@ -211,9 +215,11 @@ main = do
         <|> (hasPrefix "js/") >-> addBase "."
 
   connectApp <- KC.connect opts $ \kc_doc -> do
-    sendApp kc_doc $ do
+    sendApp kc_doc $ WebAudio $ do
       -- APP.procedure $ CreateOscillator 400 0 Sine
-      CreateOscillator 400 0 Sine      
+      osc <- createOscillator 400 0 Sine
+      traceShow osc $ return ()
+      return ()
       
 
   scotty 3000 $ do
@@ -229,7 +235,7 @@ opts = def { KC.prefix = "/example"}
 test :: KC.Document -> IO ()
 test doc = do
   putStrLn "in test"
-  -- KC.send doc "testOsc()"
+  -- KC. doc "testOsc()"
   -- oscType doc Sawtooth
   -- KC.send doc "osc.start();" -- both work
   -- sendApp doc (WebAudio (createOscillator (oscillatorNode 220 0 Square)))
