@@ -51,16 +51,19 @@ main :: IO ()
 main = do
   webAudio 3000 $ \doc -> do
     send doc $ do
-      _ <- createOscillator 400 0 Sine
-      _ <- createOscillator 404 4 Sine
+      osc1 <- createOscillator 400 0 Sine
+      osc2 <- createOscillator 404 4 Sine
+      start osc1
       return ()
     -- sendApp doc $ WebAudio $ do
     --   createOscillator 400 0 Sine
     --   return ()
   -- kcomet <- KC.kCometPlugin
+    -- KC.send doc $ "sounds[0].start();"
 
   
 data Command :: * where
+  Start :: OscillatorNode -> Command
   -- CreateOscillator :: OscillatorNode -> Command
 
 data Procedure :: * -> * where
@@ -154,6 +157,9 @@ createOscillator :: Double -> Double -> OscillatorNodeType -> WebAudio Oscillato
 -- createOscillator :: Double -> Double -> OscillatorNodeType -> RemoteMonad Command Procedure OscillatorNode
 createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq det osctype)
 
+start :: OscillatorNode -> WebAudio ()
+start osc = WebAudio $ command (Start osc)
+
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
 
@@ -167,15 +173,23 @@ sendApp d (WebAudio m) = (run $ runMonad $ nat (runAP d)) m
 runAP :: KC.Document -> ApplicativePacket Command Procedure a -> IO a
 runAP d pkt =
   case AP.superCommand pkt of
-    Just a -> do -- is a Command
-      -- let cmds = formatPackets pkt ""
-      let cmds = "" -- temp solution
-      KC.send d cmds
+    Just a -> do -- is only commands
+      cmds <- handlePacket d pkt ""
+      traceShow cmds $ KC.send d cmds
       return a
     Nothing -> case pkt of
-      AP.Command cmd -> undefined -- do KC.send d (formatCommand cmd)
+      AP.Command cmd -> do -- is only commands
+       cmds <- formatCommand cmd ""
+       trace "supercommand Nothing" $ KC.send d cmds
       AP.Procedure p -> sendProcedure d p ""
 
+  where
+    handlePacket :: KC.Document -> ApplicativePacket Command Procedure a -> T.Text -> IO T.Text
+    handlePacket doc pkt cmds =
+      case pkt of
+        AP.Command cmd -> formatCommand cmd cmds
+        
+-- refactor to be easier to add stuff
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
   uq <- atomically getUniq
@@ -188,6 +202,13 @@ sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
   
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
+
+-- sendCommand :: KC.Document -> Command -> T.
+-- sendCommand d (Start osc) = KC.send d $ "sounds[" <> tshow (index osc) <> "].start();"
+-- sendCommand doc cmd = KC.send (formatCommand cmd)
+
+formatCommand :: Command -> T.Text -> IO T.Text
+formatCommand (Start osc) cmds = return $ "sounds[" <> tshow (index osc) <> "].start();" <> cmds
 
 -- yeah it's gross
 uncurry9 :: (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> b) ->
