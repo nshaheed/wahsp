@@ -1,0 +1,79 @@
+<html>
+    <head>
+        <title>Kansas Comet Example</title>
+        <script type="text/javascript" src="js/jquery.js"></script>
+        <script type="text/javascript" src="js/jquery-json.js"></script>
+        <script type="text/javascript" src="js/kansas-comet.js"></script>
+        <link type="text/css" href="css/ui-lightness/jquery-ui.css" rel="Stylesheet" />
+        <script type="text/javascript" src="js/jquery-ui.js"></script>
+    </head>
+    <body>
+
+    <div align="center" style="border: 1px solid; padding: 10px; display: inline-block; line-height: 3em;">
+      <button id="reset" class="click">Reset</button>
+      <button id="down" class="click">-1</button>
+      <button id="up" class="click">+1</button>
+      <br/>
+      <span id="fib-out" style="font-size: x-large;" class="click">fib 0 = 1</span>
+      <br/>
+      <div id="slider" style="width: 200px" class="slide"></div>
+    </div>
+
+        <div id="no-debug-log"></div>
+
+        <script type="text/javascript">
+
+	  <!-- var audioCtx = new (window.AudioContext || window.webkitAudioContext)();	   -->
+	  <!-- var osc = audioCtx.createOscillator(); -->
+	  <!-- var gainNode = audioCtx.createGain(); -->
+
+	  <!-- osc.connect(gainNode); -->
+	  <!-- gainNode.connect(audioCtx.destination); // <\!-- identity? -\-> -->
+
+	  <!-- osc.type = 'sine'; -->
+	  <!-- osc.frequency.value = 440; -->
+	  <!-- // <\!-- osc.detune.value = 10.5 -\-> -->
+	  <!-- osc.start(); -->
+
+	  <!-- function testE() { -->
+	  console.log("starting...");
+	  // create web audio api context
+	  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+	  // create Oscillator and gain node
+	  var oscillator = audioCtx.createOscillator();
+	  var gainNode = audioCtx.createGain();
+
+	  // connect oscillator to gain node to speakers
+
+	  oscillator.connect(gainNode);
+	  gainNode.connect(audioCtx.destination);
+
+	  oscillator.frequency.value = 400;
+
+	  oscillator.start();
+	  <!-- } -->
+	  
+	  function testOsc() {
+	    osc.start();
+	  }
+
+	  function testF() {
+	    console.log("in function");
+	  }
+	  
+            $(document).ready(function() {
+                $.kc.connect("/example");
+
+                $("button").button();
+
+                $( "#slider" ).slider({
+                        range: "min",
+                        value: 0,
+                        min: 0,
+                        max: 25
+                });
+            });
+        </script>
+    </body>
+</html>
