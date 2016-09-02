@@ -93,6 +93,10 @@ audioGraph (AudioGraph (x:xs) ctx) =
   showtJS x <> ".connect(" <> audioGraph (AudioGraph xs ctx) <> ")"
 audioGraph (AudioGraph [] _) = ""
 
+-- work with later, can't compile right now
+data AudioGraph' :: * -> * -> * where
+  AudioGraph' :: (AudioNode a, AudioParam b) => Node a (AudioGraph a b) | Param b (AudioGraph a b) | Ctx (Maybe AudioContext)
+
 -- audioGraph ((Left a):xs) _ = ""
 -- audioGraph ((Right b):xs) _ = ""
 -- audioGraph [] (Just a) = ""
