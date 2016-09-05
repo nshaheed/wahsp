@@ -71,11 +71,18 @@ main = do
       return ()
 
 data Command :: * where
-  Start     :: OscillatorNode -> Command
-  StartWhen :: OscillatorNode -> Double -> Command
-  Stop      :: OscillatorNode -> Command
-  StopWhen  :: OscillatorNode -> Double -> Command
-  Connect   :: AudioGraph AudNode b -> Command
+  Start                   :: OscillatorNode -> Command
+  StartWhen               :: OscillatorNode -> Double -> Command
+  Stop                    :: OscillatorNode -> Command
+  StopWhen                :: OscillatorNode -> Double -> Command
+  Connect                 :: AudioGraph AudNode b -> Command
+  Disconnect              :: AudioNode a => a -> Command
+  DisconnectOutput        :: AudioNode a => a -> Int -> Command
+  DisconnectOutputInput   :: AudioNode a => a -> a -> Int -> Int -> Command
+  DisconnectDestNode      :: AudioNode a => a -> a -> Command
+  DisconnectDestNodeSpec  :: AudioNode a => a -> a -> Int -> Command  
+  DisconnectDestParam     :: AudioNode a => a -> AudioParam -> Command
+  DisconnectDestParamSpec :: AudioNode a => a -> AudioParam -> Int -> Command  
 
 data AudioGraph :: * -> * -> * where
   Node     :: AudNode -> AudioGraph AudNode b -> AudioGraph AudNode b
@@ -140,6 +147,9 @@ instance AudioNode GainNode where
 
 data AudioParam = AudioParam AudioParamType Int Double 
   deriving (Read,Show,Eq)
+
+audioParamIdx :: AudioParam -> Int
+audioParamIdx (AudioParam _ i _) = i
 
 data GainNode = GainNode {
   indexGain                 :: !Int,
@@ -284,17 +294,33 @@ stop = WebAudio . command . Stop
 stopWhen :: OscillatorNode -> Double -> WebAudio ()
 stopWhen o t = WebAudio . command $ StopWhen o t
 
--- connect n1 to n2. note: does not return reference to connected node like in js web audio api
--- connect :: AudioNode a => a -> a -> WebAudio ()
--- connect :: Nodes a => a -> a -> WebAudio ()
--- connect n1 n2 = WebAudio . command $ Connect n1 n2
+-- disconnect functions
+
+-- disconnect all outgoing connections from AudioNode n
+disconnect :: AudioNode a => a -> WebAudio ()
+disconnect src = WebAudio . command $ Disconnect src
+
+disconnectOutput :: AudioNode a => a -> Int -> WebAudio ()
+disconnectOutput src idx = WebAudio . command $ DisconnectOutput src idx
+
+disconnectOutputInput :: AudioNode a => a -> a -> Int -> Int -> WebAudio ()
+disconnectOutputInput src dest output input = WebAudio . command $
+                                              DisconnectOutputInput src dest output input
+  
+disconnectDestNode :: AudioNode a => a -> a -> WebAudio ()
+disconnectDestNode src dest = WebAudio . command $ DisconnectDestNode src dest
+
+disconnectDestNodeSpec :: AudioNode a => a -> a -> Int -> WebAudio ()
+disconnectDestNodeSpec src dest idx = WebAudio . command $ DisconnectDestNodeSpec src dest idx
+
+disconnectDestParam :: AudioNode a => a -> AudioParam -> WebAudio ()
+disconnectDestParam src dest = WebAudio . command $ DisconnectDestParam src dest
+
+disconnectDestParamSpec :: AudioNode a => a -> AudioParam -> Int -> WebAudio ()
+disconnectDestParamSpec src dest idx = WebAudio . command $ DisconnectDestParamSpec src dest idx
 
 connect :: AudioGraph AudNode b -> WebAudio ()
 connect g = WebAudio . command $ Connect g
-
--- connects = audioGraph
--- connects :: (AudioNode a, AudioParam b) => [Either a b] -> Maybe AudioContext -> WebAudio ()
--- connects nodes ctx = WebAudio . command $ Connects (AudioGraph nodes ctx)
 
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
@@ -363,7 +389,21 @@ formatCommand (StartWhen osc t) cmds = return $ showtJS osc <> ".start(" <> tsho
 formatCommand (Stop osc) cmds        = return $ showtJS osc <> ".stop();" <> cmds
 formatCommand (StopWhen osc t) cmds  = return $ showtJS osc <> ".stop(" <> tshow t <> ");" <> cmds
 formatCommand (Connect g) cmds = return $ audioGraphConnect g <> ";" <> cmds
-
+formatCommand (Disconnect src) cmds = return $ showtJS src <> ".disconnect();" <> cmds
+formatCommand (DisconnectOutput src idx) cmds = return $ showtJS src <>
+  ".disconnect(" <> showtJS idx <> ");" <> cmds
+formatCommand (DisconnectOutputInput src dest output input) cmds = return $
+  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS output <> "," <>
+  showtJS input <> ");" <> cmds
+formatCommand (DisconnectDestNode src dest) cmds = return $
+  showtJS src <> ".disconnect(" <> showtJS dest <> ");" <> cmds
+formatCommand (DisconnectDestNodeSpec src dest idx) cmds = return $
+  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");" <> cmds
+formatCommand (DisconnectDestParam src dest) cmds = return $
+  showtJS src <> ".disconnect(" <> showtJS dest <> ");" <> cmds
+formatCommand (DisconnectDestParamSpec src dest idx) cmds = return $
+  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");" <> cmds  
+  
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
 audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
 audioGraphConnect (EndNode (AudNode n)) = showtJS n
