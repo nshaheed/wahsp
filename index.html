@@ -35,9 +35,9 @@
 		  osc.type		= osctype;
 		  
 		  var count		= sounds.push(osc);
-		  var audioParam = "AudioParam Frequency " + (count - 1).toString();
-		  
-		  $.kc.reply(u,[count - 1, audioParam, osc.detune.value,osc.type,
+		  var freqParam = "AudioParam Frequency " + (count - 1).toString();
+		  var detParam  = "AudioParam Detune " + (count - 1).toString();
+		  $.kc.reply(u,[count - 1, freqParam, detParam ,osc.type,
 				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
 				osc.channelCountMode, osc.channelInterpretation
 		  	       ]);

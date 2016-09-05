@@ -264,7 +264,7 @@ instance Show AudioContext where
 data ChannelCountMode = Max | ClampedMax | Explicit
   deriving (Eq)
 
-data AudioParamType = Gain | Frequency
+data AudioParamType = Gain | Frequency | Detune
   deriving (Eq,Read)
 
 instance Show AudioParamType where
@@ -486,7 +486,7 @@ runAP d pkt =
           return hcmds
         
 -- refactor to be easier to add stuff
-ssendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
+sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ =
   formatProcedure d p $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
   tshow nodetype <> "')"
@@ -679,7 +679,7 @@ instance FromJSON AudioParam where
 data OscillatorNode = OscillatorNode {
   indexOsc                 :: !Int,
   frequencyOsc             :: !AudioParam,
-  detuneOsc                :: !Double,
+  detuneOsc                :: !AudioParam,
   typeOsc                  :: !OscillatorNodeType,
   numberOfInputsOsc        :: !Int,
   numberOfOutputsOsc       :: !Int,
