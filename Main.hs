@@ -63,40 +63,14 @@ main = do
       osc2 <- createOscillator 404 4 Sine
       gain' <- createGain 0.5
 
-      -- let t = Node (AudNode osc1) (EndNode (AudNode osc2))
-      -- let t' = Node (AudNode osc1) (EndNode (AudNode gain'))
-
-      -- let t'' = connector osc1 (connector osc2 (eNode osc1))
-      -- -- let t''' = (osc1 .|. (osc2 .|. (Node (AudNode gain' (eNode gain'))))) -- (eNode gain')
-      -- let t'''' = (osc1 .|. (osc2 .|. (gain' .||. (eNode gain'))))
-      -- let tt = osc1 .||. (eNode gain')
-      -- let tt' = osc1 .||. eNode gain'
-      -- let tt'' = osc1 .|. osc2 .||. eNode gain'
-
       -- connecting an oscillator to another oscillator doesn't work, not enough inlets
       -- let g = osc1 .|. osc2 .||. eNode osc2
       let g = osc1 .|. gain' .||. eCtx
 
       connect g
-      -- connect g
 
-      -- let g' = osc1 .|. gain' .||. eNode osc2
-      -- let result = audioGraphConnect g'
-      
-      -- connects [Left osc1, Right gain] (Just AudioContext )
-      -- connect osc1 osc2
-      -- connect :: AudioGraph [AudioNode] b
-      -- (<|>) :: [AudioNode] -> b -> AudioGraph b
-      -- connect :: Connector = AudioNode Connector | AudioNode | AudioParam | AudioContext
-      -- connect osc1 <> gain <|> audioContext
-      -- conn
       start osc1
       return ()
-    -- sendApp doc $ WebAudio $ do
-    --   createOscillator 400 0 Sine
-    --   return ()
-  -- kcomet <- KC.kCometPlugin
-    -- KC.send doc $ "sounds[0].start();"
 
 data Command :: * where
   Start     :: OscillatorNode -> Command
@@ -104,12 +78,6 @@ data Command :: * where
   Stop      :: OscillatorNode -> Command
   StopWhen  :: OscillatorNode -> Double -> Command
   Connect   :: AudioGraph AudNode b -> Command
-  -- Connect   :: AudioNode a => a -> a -> Command
-  -- Connects :: AudioGraph a b -> Command 
-
--- data AudioGraph :: * -> * -> * where
---   AudioGraph :: (AudioNode a, AudioParam b) => [Either a b] -> Maybe AudioContext ->
---                    AudioGraph a b
 
 data AudioGraph :: * -> * -> * where
   Node     :: AudNode -> AudioGraph AudNode b -> AudioGraph AudNode b
@@ -119,10 +87,6 @@ data AudioGraph :: * -> * -> * where
 
 data AudNode where
   AudNode :: (AudioNode a) => a -> AudNode
-
-
--- connector :: (AudioNode a) => a -> (a -> AudioGraph AudNode b) -> AudioGraph AudNode b
--- connector node graph = Node (AudNode node) (\g -> graph g)
 
 connector node = Node (AudNode node)
 
@@ -135,69 +99,6 @@ infix 8 .||.
 eNode a = EndNode (AudNode a)
 eParam = EndParam
 eCtx = EndCtx AudioContext
-
--- data (AudioNode a) => AudioGraph a =
--- data AudioNode a => AudioGraph a = 
---   Node a (AudioGraph a) | EndNode a | EndParam AudioParam | EndCtx AudioContext
---   deriving (Read, Show)
-
--- data O where
---   N :: AudioNode a => a -> O
---   P :: AudioParam -> O
---   C :: AudioContext -> O
-
--- data T where
---   I :: (Show a) => a -> T
---   E :: (Eq b) => b -> T
--- connector :: AudioGraph a b -> b -> AudioGraph a b
--- connector 
-
--- connector' :: AudioNode a => a -> AudioGraph a b -> AudioGraph a b
--- connector' = Node
-
--- connector' :: AudioNode a => a -> O -> AudioGraph a -- something like this
-
--- instance Semigroup (AudioGraph a b) where
---   a <> 
---   a <> b = b
-  
-  -- AudioGraph :: (AudioNode a) => 
-
--- connects :: [AudioGraph] -> T.Text
--- connects (c@(AudioCtx _):_) = showAudioGraph c
--- connects (x:[]) = showAudioGraph x
--- connects (x:xs) = showAudioGraph x <> ".connect(" <> connects xs <> ")"
-
--- showAudioGraph :: AudioGraph -> T.Text
--- showAudioGraph (AudioCtx AudioContext) = "audioCtx.destination"
--- showAudioGraph (AudioParam a) = showtJS a
--- showAudioGraph (AudioNode a)  = showtJS a
-
--- testConnects :: T.Text
--- testConnects =
-  
--- data AudioGraph where
---   AudioNode  :: AudioNode a => a -> AudioGraph
---   AudioParam :: AudioParam a => a -> AudioGraph
---   AudioCtx   :: AudioContext -> AudioGraph
-
--- audioGraph ((Left a):xs) _ = ""
--- audioGraph ((Right b):xs) _ = ""
--- audioGraph [] (Just a) = ""
--- audoGraph [] (Nothing) = ""
-
--- connectToContext :: [Either AudioNode AudioParam] -> WebAudio ()
--- connectToContext
-
--- class AudioGraphInit = AudioGraphInit a | b
--- connect :: AudioNoda a => a -> a -> Command
--- connects :: AudioNode a => [a] -> Command
-
--- class JSArg a => AudioGraph a where
---   connecttmp :: AudioGraph b => a -> b -> T.Text
-
--- instance AudioGraph (AudioNode a) where
---   connecttmp a = 
   
 data Procedure :: * -> * where
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
@@ -220,28 +121,6 @@ instance AudioNode OscillatorNode where
   channelCount          = channelCountOsc
   channelCountMode      = channelCountModeOsc
   channelInterpretation = channelInterpretationOsc
-
--- class JSArg a => AudioParam a where
---   defaultValue :: a -> Double
---   maxValue     :: a -> Double
---   minValue     :: a -> Double
---   value        :: a -> Double
-
--- instance AudioParam Gain where
---   defaultValue = defaultValueGain
---   maxValue     = maxValueGain
---   minValue     = minValueGain
---   value        = valueGain
-
--- type AudioParam = Double
-
--- data AudioParam = AudioParam {
---   name         :: !T.Text,
---   defaultValue :: !Double,
---   maxValue     :: !Double,
---   minValue     :: !Double,
---   value        :: !Double
--- }
 
 instance AudioNode GainNode where
   numberOfInputs        = numberOfInputsGain
@@ -463,23 +342,10 @@ sendProcedure d p@(CreateGain val) _ = do
   case parse (parseProcedure p) v of
     Error msg -> fail msg
     Success a -> return a
-    
--- sendToKC :: KC.Document -> T.Text -> IO a
--- sendToKC d t = do
---   uq <- atomically getUniq
---   KC.send d t
---   v <- KC.getReply d uq
---   case parse (parseProcedure p) v of
---     Error msg -> fail msg
---     Success a -> return a
-  
+      
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
-
--- sendCommand :: KC.Document -> Command -> T.
--- sendCommand d (Start osc) = KC.send d $ "sounds[" <> tshow (index osc) <> "].start();"
--- sendCommand doc cmd = KC.send (formatCommand cmd)
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ showtJS osc <> ".start();" <> cmds
@@ -610,13 +476,7 @@ instance FromJSON OscillatorNodeType where
 
 instance FromJSON AudioParam where
   parseJSON = withText "AudioParam" $ \s -> return (read $ T.unpack s :: AudioParam)
-    
-
--- instance FromJSON AudioParamType where
---   parseJSON = withText "AudioParamType" $ \p ->
---     case p of
---       "gain" -> return Gain
-      
+          
 -- | OscillatorNode represents a periodic waveform with a frequency (in hertz), detuning (in cents), an OscillatorNodeType (e.g. a sine wave, square wave, etc.), etc.
 
 data OscillatorNode = OscillatorNode {
