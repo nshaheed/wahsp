@@ -60,18 +60,19 @@ main :: IO ()
 main = do
   webAudio 3000 $ \doc -> do
     send doc $ do
-      -- osc1 <- createOscillator 200 0 Sine
+      osc1 <- createOscillator 200 0 Sine
       -- osc2 <- createOscillator 2 0 Sine
-      -- gain1 <- createGain 0.5
+      gain1 <- createGain 0.5
 
+      x <- defaultValue (frequencyOsc osc1)
       -- connecting an oscillator to another oscillator (or and audio source to any other
       -- audio source) doesn't work, no inlets
-      -- let g = osc1 .|. gain1 .||. eCtx
+      let g = osc1 .|. gain1 .||. eCtx
       -- let g' = osc2 .||. eParam (gain gain1)
-      -- connect g
+      traceShow x $ connect g
       -- connect g'
 
-      -- start osc1
+      start osc1
       -- startWhen osc1 2
 
       -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
@@ -82,7 +83,6 @@ main = do
       -- stopWhen osc1 5
 
       -- lfoex
-      oscillatorEx
       return ()
 
 oscillatorEx = do
@@ -168,7 +168,10 @@ eCtx = EndCtx AudioContext
   
 data Procedure :: * -> * where
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
-  CreateGain :: Double -> Procedure GainNode
+  CreateGain       :: Double -> Procedure GainNode
+  DefaultValue     :: AudioParam -> Procedure Double
+  MaxValue         :: AudioParam -> Procedure Double
+  MinValue         :: AudioParam -> Procedure Double
 
 -- | And AudioNode is an interface for any audio processing module in the Web Audio API
 class JSArg a => AudioNode a where
@@ -326,6 +329,15 @@ createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq 
 createGain :: Double -> WebAudio GainNode
 createGain val = WebAudio $ procedure (CreateGain val)
 
+defaultValue     :: AudioParam -> WebAudio Double
+defaultValue p = WebAudio $ procedure (DefaultValue p)
+
+maxValue         :: AudioParam -> WebAudio Double
+maxValue p = WebAudio $ procedure (MaxValue p)
+
+minValue         :: AudioParam -> WebAudio Double
+minValue p = WebAudio $ procedure (MinValue p)
+
 -- start oscillator
 start :: OscillatorNode -> WebAudio ()
 start = WebAudio . command . Start
@@ -426,10 +438,18 @@ sendProcedure d p@(CreateGain val) _ = do
   case parse (parseProcedure p) v of
     Error msg -> fail msg
     Success a -> return a
+sendProcedure d p@(DefaultValue audioParam) _ = do
+  uq <- atomically getUniq
+  KC.send d $ "DefaultValue(" <> showtJS audioParam <> ")(" <> tshow uq <> ");"
+  v <- KC.getReply d uq
+  case parse (parseProcedure p) v of
+    Error msg -> fail msg
+    Success a -> return a    
       
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
+parseProcedure (DefaultValue {}) o = parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"

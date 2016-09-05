@@ -45,6 +45,12 @@
 	      }
 	  }
 
+          function DefaultValue(params) {
+	      return function(u) {
+		  $.kc.reply(u,params.defaultValue);
+	      }
+	  }
+
           function CreateGain(val) {
 	      return function(u) {
 		  var gainNode		= audioCtx.createGain();
