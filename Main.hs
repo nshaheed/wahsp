@@ -60,14 +60,14 @@ main :: IO ()
 main = do
   webAudio 3000 $ \doc -> do
     send doc $ do
-      osc1 <- createOscillator 200 0 Sine
-      osc2 <- createOscillator 2 0 Sine
-      gain1 <- createGain 0.5
+      -- osc1 <- createOscillator 200 0 Sine
+      -- osc2 <- createOscillator 2 0 Sine
+      -- gain1 <- createGain 0.5
 
       -- connecting an oscillator to another oscillator (or and audio source to any other
       -- audio source) doesn't work, no inlets
-      let g = osc1 .|. gain1 .||. eCtx
-      let g' = osc2 .||. eParam (gain gain1)
+      -- let g = osc1 .|. gain1 .||. eCtx
+      -- let g' = osc2 .||. eParam (gain gain1)
       -- connect g
       -- connect g'
 
@@ -81,11 +81,20 @@ main = do
       -- stop osc1
       -- stopWhen osc1 5
 
-      lfoex
+      -- lfoex
+      oscillatorEx
       return ()
 
+oscillatorEx = do
+  oscNode  <- createOscillator 440 0 Sine
+  gainNode <- createGain 0.7
+
+  connect (oscNode .|. gainNode .||. eCtx)
+
+  start oscNode
+  
 -- adapted from https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/connect(AudioParam)
-lfoex = do
+lfoEx = do
   -- initialize the oscillator, the lfo, and the gain that will be controlled by the lso and
   -- the oscillator will be routed through
   osc1  <- createOscillator 400 0 Sine  
