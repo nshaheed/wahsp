@@ -35,13 +35,18 @@
 		  osc.type		= osctype;
 		  
 		  var count		= sounds.push(osc);
-		  var audioParam = "AudioParam Frequency " + (count - 1).toString() + " " + 
-		      osc.frequency.value.toString();
+		  var audioParam = "AudioParam Frequency " + (count - 1).toString();
 		  
 		  $.kc.reply(u,[count - 1, audioParam, osc.detune.value,osc.type,
 				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
 				osc.channelCountMode, osc.channelInterpretation
 		  	       ]);
+	      }
+	  }
+
+          function Value(params) {
+	      return function(u) {
+		  $.kc.reply(u,params.value);
 	      }
 	  }
 
@@ -70,8 +75,8 @@
 		  
 		  var count		= sounds.push(gainNode);
 
-		  $.kc.reply(u,[count - 1,"AudioParam Gain " + (count - 1).toString() + " " + 
-				gainNode.gain.value.toString(), gainNode.numberOfInputs,
+		  $.kc.reply(u,[count - 1,"AudioParam Gain " + (count - 1).toString(),
+				gainNode.numberOfInputs,
 				gainNode.numberOfOutputs, gainNode.channelCount,
 				gainNode.channelCountMode, gainNode.channelInterpretation
 		  	       ]);		  

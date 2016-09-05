@@ -64,6 +64,7 @@ main = do
       -- osc2 <- createOscillator 2 0 Sine
       gain1 <- createGain 0.5
 
+      val <- value (frequencyOsc osc1)
       def <- defaultValue (frequencyOsc osc1)
       max <- maxValue (frequencyOsc osc1)
       min <- minValue (frequencyOsc osc1)
@@ -71,7 +72,7 @@ main = do
       -- audio source) doesn't work, no inlets
       let g = osc1 .|. gain1 .||. eCtx
       -- let g' = osc2 .||. eParam (gain gain1)
-      connect g
+      traceShow val $ traceShow def $ traceShow max $ traceShow min $ connect g
       -- connect g'
 
       -- start osc1
@@ -84,9 +85,38 @@ main = do
       -- stop osc1
       -- stopWhen osc1 5
 
-      lfoEx
+      -- lfoEx
+      setValueTests
       return ()
 
+setValueTests = do
+  osc1 <- createOscillator 200 0 Sine
+  gain1 <- createGain 0.5
+
+  setValue (frequencyOsc osc1) 800
+  -- setValueAtTime (frequencyOsc osc1) 200 4
+  -- linearRampToValueAtTime (frequencyOsc osc1) 400 8
+  -- exponentialRampToValueAtTime (frequencyOsc osc1) 400 8
+  setTargetAtTime (frequencyOsc osc1) 400 3 10
+  cancelScheduledValues (frequencyOsc osc1) 2.9
+
+  connect $ osc1 .|. gain1 .||. eCtx
+  
+  start osc1
+  
+valueTests = do
+  osc1 <- createOscillator 200 0 Sine
+  gain1 <- createGain 0.5
+
+  val <- value (frequencyOsc osc1)
+  def <- defaultValue (frequencyOsc osc1)
+  max <- maxValue (frequencyOsc osc1)
+  min <- minValue (frequencyOsc osc1)
+  
+  let g = osc1 .|. gain1 .||. eCtx
+  
+  traceShow val $ traceShow def $ traceShow max $ traceShow min $ connect g
+  
 oscillatorEx = do
   -- initialize an oscillator node and a gain node
   oscNode  <- createOscillator 440 0 Sine
@@ -121,19 +151,25 @@ lfoEx = do
       
 
 data Command :: * where
-  Start                   :: OscillatorNode -> Command
-  StartWhen               :: OscillatorNode -> Double -> Command
-  Stop                    :: OscillatorNode -> Command
-  StopWhen                :: OscillatorNode -> Double -> Command
-  Connect                 :: AudioGraph AudNode b -> Command
-  Disconnect              :: AudioNode a => a -> Command
-  DisconnectOutput        :: AudioNode a => a -> Int -> Command
-  DisconnectOutputInput   :: AudioNode a => a -> a -> Int -> Int -> Command
-  DisconnectDestNode      :: AudioNode a => a -> a -> Command
-  DisconnectDestNodeSpec  :: AudioNode a => a -> a -> Int -> Command  
-  DisconnectDestParam     :: AudioNode a => a -> AudioParam -> Command
-  DisconnectDestParamSpec :: AudioNode a => a -> AudioParam -> Int -> Command  
-
+  Start                        :: OscillatorNode -> Command
+  StartWhen                    :: OscillatorNode -> Double -> Command
+  Stop                         :: OscillatorNode -> Command
+  StopWhen                     :: OscillatorNode -> Double -> Command
+  Connect                      :: AudioGraph AudNode b -> Command
+  Disconnect                   :: AudioNode a => a -> Command
+  DisconnectOutput             :: AudioNode a => a -> Int -> Command
+  DisconnectOutputInput        :: AudioNode a => a -> a -> Int -> Int -> Command
+  DisconnectDestNode           :: AudioNode a => a -> a -> Command
+  DisconnectDestNodeSpec       :: AudioNode a => a -> a -> Int -> Command  
+  DisconnectDestParam          :: AudioNode a => a -> AudioParam -> Command
+  DisconnectDestParamSpec      :: AudioNode a => a -> AudioParam -> Int -> Command
+  SetValue                     :: AudioParam -> Double -> Command
+  SetValueAtTime               :: AudioParam -> Double -> Double -> Command
+  LinearRampToValueAtTime      :: AudioParam -> Double -> Double -> Command
+  ExponentialRampToValueAtTime :: AudioParam -> Double -> Double -> Command
+  SetTargetAtTime              :: AudioParam -> Double -> Double -> Double -> Command
+  CancelScheduledValues      :: AudioParam -> Double -> Command
+  
 data AudioGraph :: * -> * -> * where
   Node     :: AudNode -> AudioGraph AudNode b -> AudioGraph AudNode b
   EndNode  :: AudNode -> AudioGraph AudNode AudNode
@@ -167,13 +203,14 @@ eParam = EndParam
 
 eCtx :: AudioGraph AudNode AudioContext
 eCtx = EndCtx AudioContext
-  
-data Procedure :: * -> * where
+
+data Procedure     :: * -> * where
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
   CreateGain       :: Double -> Procedure GainNode
   DefaultValue     :: AudioParam -> Procedure Double
   MaxValue         :: AudioParam -> Procedure Double
   MinValue         :: AudioParam -> Procedure Double
+  Value            :: AudioParam -> Procedure Double
 
 -- | And AudioNode is an interface for any audio processing module in the Web Audio API
 class JSArg a => AudioNode a where
@@ -198,11 +235,11 @@ instance AudioNode GainNode where
   channelCountMode      = channelCountModeGain
   channelInterpretation = channelInterpretationGain  
 
-data AudioParam = AudioParam AudioParamType Int Double 
+data AudioParam = AudioParam AudioParamType Int
   deriving (Read,Show,Eq)
 
 audioParamIdx :: AudioParam -> Int
-audioParamIdx (AudioParam _ i _) = i
+audioParamIdx (AudioParam _ i) = i
 
 data GainNode = GainNode {
   indexGain                 :: !Int,
@@ -271,7 +308,7 @@ instance JSArg AudioContext where
   showtJS a = tshow a
 
 instance JSArg AudioParam where
-  showtJS (AudioParam ptype idx _) = "sounds[" <> tshow idx <> "]." <> tshow ptype
+  showtJS (AudioParam ptype idx) = "sounds[" <> tshow idx <> "]." <> tshow ptype
 
 -- instance JSArg AudioParam where
 --   showtJS _ = "gain"
@@ -331,14 +368,17 @@ createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq 
 createGain :: Double -> WebAudio GainNode
 createGain val = WebAudio $ procedure (CreateGain val)
 
-defaultValue     :: AudioParam -> WebAudio Double
+defaultValue :: AudioParam -> WebAudio Double
 defaultValue p = WebAudio $ procedure (DefaultValue p)
 
-maxValue         :: AudioParam -> WebAudio Double
+maxValue :: AudioParam -> WebAudio Double
 maxValue p = WebAudio $ procedure (MaxValue p)
 
-minValue         :: AudioParam -> WebAudio Double
+minValue :: AudioParam -> WebAudio Double
 minValue p = WebAudio $ procedure (MinValue p)
+
+value :: AudioParam -> WebAudio Double
+value p = WebAudio $ procedure (Value p)
 
 -- start oscillator
 start :: OscillatorNode -> WebAudio ()
@@ -384,6 +424,28 @@ disconnectDestParamSpec src dest idx = WebAudio . command $ DisconnectDestParamS
 connect :: AudioGraph AudNode b -> WebAudio ()
 connect g = WebAudio . command $ Connect g
 
+-- Set Value functions
+
+setValue :: AudioParam -> Double -> WebAudio ()
+setValue p val = WebAudio . command $ SetValue p val
+  
+setValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
+setValueAtTime p val startTime = WebAudio . command $ SetValueAtTime p val startTime
+
+linearRampToValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
+linearRampToValueAtTime p val endTime = WebAudio . command $ LinearRampToValueAtTime  p val endTime
+
+exponentialRampToValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
+exponentialRampToValueAtTime p val endTime = WebAudio . command $
+  ExponentialRampToValueAtTime p val endTime
+
+setTargetAtTime :: AudioParam -> Double -> Double -> Double -> WebAudio ()
+setTargetAtTime p target startTime timeConstant =
+  WebAudio . command $ SetTargetAtTime  p target startTime timeConstant
+  
+cancelScheduledValues :: AudioParam -> Double -> WebAudio ()
+cancelScheduledValues p startTime = WebAudio . command $ CancelScheduledValues p startTime
+
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
 
@@ -424,7 +486,7 @@ runAP d pkt =
           return hcmds
         
 -- refactor to be easier to add stuff
-sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
+ssendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ =
   formatProcedure d p $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
   tshow nodetype <> "')"
@@ -435,6 +497,8 @@ sendProcedure d p@(MaxValue audioParam) _ =
   formatProcedure d p $ "MaxValue(" <> showtJS audioParam <> ")"
 sendProcedure d p@(MinValue audioParam) _ =
   formatProcedure d p $ "MinValue(" <> showtJS audioParam <> ")"
+sendProcedure d p@(Value audioParam) _ =
+  formatProcedure d p $ "Value(" <> showtJS audioParam <> ")"  
   
 -- take text for function calls to be sent and add generate unique for port
 formatProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
@@ -452,6 +516,7 @@ parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
 parseProcedure (DefaultValue {}) o = parseJSON o
 parseProcedure (MaxValue {}) o = parseJSON o
 parseProcedure (MinValue {}) o = parseJSON o
+parseProcedure (Value {}) o = parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"
@@ -473,6 +538,18 @@ formatCommand (DisconnectDestParam src dest) cmds = return $
   cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> ");"
 formatCommand (DisconnectDestParamSpec src dest idx) cmds = return $
   cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");"
+formatCommand (SetValue p val) cmds = return $ cmds <> showtJS p <> ".value = " <> showtJS val <> ";"
+formatCommand (SetValueAtTime p val startTime) cmds = return $ cmds <> showtJS p <>
+  ".setValueAtTime(" <> showtJS val <> "," <> showtJS startTime <> ");"
+formatCommand (LinearRampToValueAtTime p val endTime) cmds = return $ cmds <>
+  showtJS p <> ".linearRampToValueAtTime(" <> showtJS val <> "," <> showtJS endTime <> ");"
+formatCommand (ExponentialRampToValueAtTime p val endTime) cmds = return $ cmds <>
+  showtJS p <> ".exponentialRampToValueAtTime(" <> showtJS val <> "," <> showtJS endTime <> ");"
+formatCommand (SetTargetAtTime p target startTime timeConstant) cmds = return $ cmds <>
+  showtJS p <> ".setTargetAtTime(" <> showtJS target <> "," <> showtJS startTime <> "," <>
+  showtJS timeConstant <> ");"
+formatCommand (CancelScheduledValues p startTime ) cmds = return $ cmds <>
+  showtJS p <> ".cancelScheduledValues(" <> showtJS startTime <> ");"
   
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
 audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
