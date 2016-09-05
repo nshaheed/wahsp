@@ -51,6 +51,18 @@
 	      }
 	  }
 
+          function MaxValue(params) {
+	      return function(u) {
+		  $.kc.reply(u,params.maxValue);
+	      }
+	  }
+
+          function MinValue(params) {
+	      return function(u) {
+		  $.kc.reply(u,params.minValue);
+	      }
+	  }
+
           function CreateGain(val) {
 	      return function(u) {
 		  var gainNode		= audioCtx.createGain();

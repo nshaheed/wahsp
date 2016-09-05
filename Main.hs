@@ -64,15 +64,17 @@ main = do
       -- osc2 <- createOscillator 2 0 Sine
       gain1 <- createGain 0.5
 
-      x <- defaultValue (frequencyOsc osc1)
+      def <- defaultValue (frequencyOsc osc1)
+      max <- maxValue (frequencyOsc osc1)
+      min <- minValue (frequencyOsc osc1)
       -- connecting an oscillator to another oscillator (or and audio source to any other
       -- audio source) doesn't work, no inlets
       let g = osc1 .|. gain1 .||. eCtx
       -- let g' = osc2 .||. eParam (gain gain1)
-      traceShow x $ connect g
+      connect g
       -- connect g'
 
-      start osc1
+      -- start osc1
       -- startWhen osc1 2
 
       -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
@@ -82,7 +84,7 @@ main = do
       -- stop osc1
       -- stopWhen osc1 5
 
-      -- lfoex
+      lfoEx
       return ()
 
 oscillatorEx = do
@@ -423,33 +425,33 @@ runAP d pkt =
         
 -- refactor to be easier to add stuff
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
-sendProcedure d p@(CreateOscillator freq det nodetype) _ = do
+sendProcedure d p@(CreateOscillator freq det nodetype) _ =
+  formatProcedure d p $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
+  tshow nodetype <> "')"
+sendProcedure d p@(CreateGain val) _ = formatProcedure d p $ "CreateGain(" <> tshow val <> ")"
+sendProcedure d p@(DefaultValue audioParam) _ =
+  formatProcedure d p $ "DefaultValue(" <> showtJS audioParam <> ")"
+sendProcedure d p@(MaxValue audioParam) _ =
+  formatProcedure d p $ "MaxValue(" <> showtJS audioParam <> ")"
+sendProcedure d p@(MinValue audioParam) _ =
+  formatProcedure d p $ "MinValue(" <> showtJS audioParam <> ")"
+  
+-- take text for function calls to be sent and add generate unique for port
+formatProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
+formatProcedure d p call = do
   uq <- atomically getUniq
-  KC.send d $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
-    tshow nodetype <> "')(" <> tshow uq <> ");"
+  KC.send d $ call <> "(" <> tshow uq <> ");"
   v <- KC.getReply d uq
   case parse (parseProcedure p) v of
     Error msg -> fail msg
     Success a -> return a
-sendProcedure d p@(CreateGain val) _ = do
-  uq <- atomically getUniq
-  KC.send d $ "CreateGain(" <> tshow val <> ")(" <> tshow uq <> ");"
-  v <- KC.getReply d uq
-  case parse (parseProcedure p) v of
-    Error msg -> fail msg
-    Success a -> return a
-sendProcedure d p@(DefaultValue audioParam) _ = do
-  uq <- atomically getUniq
-  KC.send d $ "DefaultValue(" <> showtJS audioParam <> ")(" <> tshow uq <> ");"
-  v <- KC.getReply d uq
-  case parse (parseProcedure p) v of
-    Error msg -> fail msg
-    Success a -> return a    
-      
+
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
 parseProcedure (DefaultValue {}) o = parseJSON o
+parseProcedure (MaxValue {}) o = parseJSON o
+parseProcedure (MinValue {}) o = parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"
