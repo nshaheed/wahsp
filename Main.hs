@@ -29,9 +29,7 @@ import Data.Aeson (FromJSON(..),Value(..),withText)
 import Data.Aeson.Types (Parser,parse,Result(..))
 import Data.Char
 import Data.Default.Class
--- import Data.Monoid ((<>))
-import Data.Semigroup hiding (Max(..))
--- import Data.Semigroup
+import Data.Monoid ((<>))
 import qualified Data.Text as T
 
 import Debug.Trace
@@ -63,8 +61,8 @@ main = do
       osc2 <- createOscillator 404 4 Sine
       gain' <- createGain 0.5
 
-      -- connecting an oscillator to another oscillator doesn't work, not enough inlets
-      -- let g = osc1 .|. osc2 .||. eNode osc2
+      -- connecting an oscillator to another oscillator (or and audio source to any other
+      -- audio source) doesn't work, no inlets
       let g = osc1 .|. gain' .||. eCtx
 
       connect g
@@ -88,16 +86,29 @@ data AudioGraph :: * -> * -> * where
 data AudNode where
   AudNode :: (AudioNode a) => a -> AudNode
 
+connector :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
 connector node = Node (AudNode node)
 
+(.|.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
 (.|.) a b = connector a b
 infix 7 .|.
 
-(.||.) a b = Node (AudNode a) b
+connectorLast :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
+connectorLast a b = Node (AudNode a) b
+
+(.||.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
+(.||.) = connectorLast
+
 infix 8 .||.
 
+-- eNode :: AudioNode a => a -> AudioNode AudNode AudNode
+eNode :: AudioNode a => a -> AudioGraph AudNode AudNode
 eNode a = EndNode (AudNode a)
+
+eParam :: AudioParam -> AudioGraph AudNode AudioParam
 eParam = EndParam
+
+eCtx :: AudioGraph AudNode AudioContext
 eCtx = EndCtx AudioContext
   
 data Procedure :: * -> * where
@@ -106,7 +117,6 @@ data Procedure :: * -> * where
 
 -- | And AudioNode is an interface for any audio processing module in the Web Audio API
 class JSArg a => AudioNode a where
-  -- jsAudioNode           :: a -> T.Text
   numberOfInputs        :: a -> Int
   numberOfOutputs       :: a -> Int
   channelCount          :: a -> Int -- potentially change to maybe
@@ -115,7 +125,6 @@ class JSArg a => AudioNode a where
 
 -- | Instantizes OscillatorNode with the default values
 instance AudioNode OscillatorNode where
-  -- jsAudioNode           = showtJS
   numberOfInputs        = numberOfInputsOsc
   numberOfOutputs       = numberOfOutputsOsc
   channelCount          = channelCountOsc
@@ -130,7 +139,7 @@ instance AudioNode GainNode where
   channelInterpretation = channelInterpretationGain  
 
 data AudioParam = AudioParam AudioParamType Int Double 
-  deriving (Read,Show)
+  deriving (Read,Show,Eq)
 
 data GainNode = GainNode {
   indexGain                 :: !Int,
@@ -141,7 +150,7 @@ data GainNode = GainNode {
   channelCountModeGain      :: !ChannelCountMode,
   channelInterpretationGain :: !ChannelInterpretation  
 }
-  deriving (Show, Read)
+  deriving (Show, Read, Eq)
 
 -- the audio context, this is pre-existing in the js, and only one is needed
 data AudioContext = AudioContext
@@ -155,11 +164,12 @@ instance Show AudioContext where
 data ChannelCountMode = Max | ClampedMax | Explicit
   deriving (Eq)
 
-data AudioParamType = Gain
+data AudioParamType = Gain | Frequency
   deriving (Eq,Read)
 
 instance Show AudioParamType where
   show Gain = "gain"
+  show Frequency = "frequency"
   
 instance Show ChannelCountMode where
   show Max        = "max"
@@ -481,7 +491,7 @@ instance FromJSON AudioParam where
 
 data OscillatorNode = OscillatorNode {
   indexOsc                 :: !Int,
-  frequencyOsc             :: !Double,
+  frequencyOsc             :: !AudioParam,
   detuneOsc                :: !Double,
   typeOsc                  :: !OscillatorNodeType,
   numberOfInputsOsc        :: !Int,
@@ -490,8 +500,8 @@ data OscillatorNode = OscillatorNode {
   channelCountModeOsc      :: !ChannelCountMode,
   channelInterpretationOsc :: !ChannelInterpretation
 }
-  deriving (Read,Show,Eq)                      
-  
+  deriving (Read,Show,Eq)
+
 tshow :: Show a => a -> T.Text
 tshow a = T.pack $ show a
 

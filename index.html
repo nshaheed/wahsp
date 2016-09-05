@@ -35,12 +35,13 @@
 		  osc.type		= osctype;
 		  
 		  var count		= sounds.push(osc);
+		  var audioParam = "AudioParam Frequency " + (count - 1).toString() + " " + 
+		      osc.frequency.value.toString();
 		  
-		  $.kc.reply(u,[count - 1,osc.frequency.value, osc.detune.value,osc.type,
+		  $.kc.reply(u,[count - 1, audioParam, osc.detune.value,osc.type,
 				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
 				osc.channelCountMode, osc.channelInterpretation
 		  	       ]);
-		  // $.kc.reply(u,[count - 1]);		  
 	      }
 	  }
 
@@ -51,19 +52,11 @@
 		  
 		  var count		= sounds.push(gainNode);
 
-		  // $.kc.reply(u,[count - 1, gainNode.defaultValue, gainNode.maxValue,
-		  // 		gainNode.minValue, gainNode.value
-		  // 	       ]);
 		  $.kc.reply(u,[count - 1,"AudioParam Gain " + (count - 1).toString() + " " + 
 				gainNode.gain.value.toString(), gainNode.numberOfInputs,
 				gainNode.numberOfOutputs, gainNode.channelCount,
 				gainNode.channelCountMode, gainNode.channelInterpretation
 		  	       ]);		  
-		  // $.kc.reply(u,[count - 1,osc.frequency.value, osc.detune.value,osc.type,
-		  // 		osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
-		  // 		osc.channelCountMode, osc.channelInterpretation
-		  // 	       ]);
-		  // $.kc.reply(u,[count - 1]);		  
 	      }
 	  }
 
