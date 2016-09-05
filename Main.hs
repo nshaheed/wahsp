@@ -16,6 +16,7 @@
 
 -- first step: connect to js
 
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
 import Control.Natural
 import qualified Control.Remote.Applicative as APP
@@ -44,6 +45,8 @@ import qualified Text.Read.Lex as L
 import qualified Web.Scotty.Comet as KC
 import Web.Scotty
 
+import System.IO.Unsafe (unsafePerformIO)
+
 -- WORKING EXAMPLE
 -- main :: IO ()
 -- main = do
@@ -58,17 +61,46 @@ main = do
   webAudio 3000 $ \doc -> do
     send doc $ do
       osc1 <- createOscillator 200 0 Sine
-      osc2 <- createOscillator 404 4 Sine
-      gain' <- createGain 0.5
+      osc2 <- createOscillator 2 0 Sine
+      gain1 <- createGain 0.5
 
       -- connecting an oscillator to another oscillator (or and audio source to any other
       -- audio source) doesn't work, no inlets
-      let g = osc1 .|. gain' .||. eCtx
+      let g = osc1 .|. gain1 .||. eCtx
+      let g' = osc2 .||. eParam (gain gain1)
+      -- connect g
+      -- connect g'
 
-      connect g
+      -- start osc1
+      -- startWhen osc1 2
 
-      start osc1
+      -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
+
+      -- disconnectOutput osc1 -- only 0 is output
+      -- disconnectDestParam osc1 (gain gain1) 
+      -- stop osc1
+      -- stopWhen osc1 5
+
+      lfoex
       return ()
+
+-- adapted from https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/connect(AudioParam)
+lfoex = do
+  -- initialize the oscillator, the lfo, and the gain that will be controlled by the lso and
+  -- the oscillator will be routed through
+  osc1  <- createOscillator 400 0 Sine  
+  lfo   <- createOscillator 2 0 Sine
+  gain1 <- createGain 0.5
+
+  
+  connect (lfo .||. eParam (gain gain1)) -- connect the lfo to gain's param value
+  connect (osc1 .||. eNode gain1)        -- connect the oscillator to the gain node
+  connect (gain1 .||. eCtx)              -- connect the gain to the context
+
+  -- start both the oscillators
+  start osc1 
+  start lfo
+      
 
 data Command :: * where
   Start                   :: OscillatorNode -> Command
@@ -384,25 +416,25 @@ parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
-formatCommand (Start osc) cmds       = return $ showtJS osc <> ".start();" <> cmds
-formatCommand (StartWhen osc t) cmds = return $ showtJS osc <> ".start(" <> tshow t <> ");" <> cmds
-formatCommand (Stop osc) cmds        = return $ showtJS osc <> ".stop();" <> cmds
-formatCommand (StopWhen osc t) cmds  = return $ showtJS osc <> ".stop(" <> tshow t <> ");" <> cmds
-formatCommand (Connect g) cmds = return $ audioGraphConnect g <> ";" <> cmds
-formatCommand (Disconnect src) cmds = return $ showtJS src <> ".disconnect();" <> cmds
-formatCommand (DisconnectOutput src idx) cmds = return $ showtJS src <>
-  ".disconnect(" <> showtJS idx <> ");" <> cmds
+formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"
+formatCommand (StartWhen osc t) cmds = return $ cmds <> showtJS osc <> ".start(" <> tshow t <> ");"
+formatCommand (Stop osc) cmds        = return $ cmds <> showtJS osc <> ".stop();"
+formatCommand (StopWhen osc t) cmds  = return $ cmds <> showtJS osc <> ".stop(" <> tshow t <> ");"
+formatCommand (Connect g) cmds       = return $ cmds <> audioGraphConnect g <> ";"
+formatCommand (Disconnect src) cmds  = return $ cmds <> showtJS src <> ".disconnect();"
+formatCommand (DisconnectOutput src idx) cmds = return $ cmds <> showtJS src <>
+  ".disconnect(" <> showtJS idx <> ");"
 formatCommand (DisconnectOutputInput src dest output input) cmds = return $
-  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS output <> "," <>
-  showtJS input <> ");" <> cmds
+  cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS output <> "," <>
+  showtJS input <> ");"
 formatCommand (DisconnectDestNode src dest) cmds = return $
-  showtJS src <> ".disconnect(" <> showtJS dest <> ");" <> cmds
+  cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> ");"
 formatCommand (DisconnectDestNodeSpec src dest idx) cmds = return $
-  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");" <> cmds
+  cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");"
 formatCommand (DisconnectDestParam src dest) cmds = return $
-  showtJS src <> ".disconnect(" <> showtJS dest <> ");" <> cmds
+  cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> ");"
 formatCommand (DisconnectDestParamSpec src dest idx) cmds = return $
-  showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");" <> cmds  
+  cmds <> showtJS src <> ".disconnect(" <> showtJS dest <> "," <> showtJS idx <> ");"
   
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
 audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
