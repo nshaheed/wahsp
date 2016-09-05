@@ -86,12 +86,19 @@ main = do
       return ()
 
 oscillatorEx = do
+  -- initialize an oscillator node and a gain node
   oscNode  <- createOscillator 440 0 Sine
   gainNode <- createGain 0.7
 
+  -- connect the oscillator node to the gain node, and then connect the gain node to the
+  -- audio context ( use (.||.) on the last value of the sequence of connections)
   connect (oscNode .|. gainNode .||. eCtx)
 
+  -- start the oscillator node
   start oscNode
+
+  -- alternatively, start the oscillator node with a five second delay
+  -- startWhen oscNode 5.0
   
 -- adapted from https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/connect(AudioParam)
 lfoEx = do
