@@ -87,6 +87,7 @@ main = do
 
       -- lfoEx
       setValueTests
+      valueTests
       return ()
 
 setValueTests = do
@@ -112,10 +113,11 @@ valueTests = do
   def <- defaultValue (frequencyOsc osc1)
   max <- maxValue (frequencyOsc osc1)
   min <- minValue (frequencyOsc osc1)
+  cur <- currentTime
   
   let g = osc1 .|. gain1 .||. eCtx
   
-  traceShow val $ traceShow def $ traceShow max $ traceShow min $ connect g
+  traceShow cur $ traceShow val $ traceShow def $ traceShow max $ traceShow min $ connect g
   
 oscillatorEx = do
   -- initialize an oscillator node and a gain node
@@ -211,6 +213,7 @@ data Procedure     :: * -> * where
   MaxValue         :: AudioParam -> Procedure Double
   MinValue         :: AudioParam -> Procedure Double
   Value            :: AudioParam -> Procedure Double
+  CurrentTime      :: Procedure Double 
 
 -- | And AudioNode is an interface for any audio processing module in the Web Audio API
 class JSArg a => AudioNode a where
@@ -380,6 +383,9 @@ minValue p = WebAudio $ procedure (MinValue p)
 value :: AudioParam -> WebAudio Double
 value p = WebAudio $ procedure (Value p)
 
+currentTime :: WebAudio Double
+currentTime = WebAudio $ procedure (CurrentTime)
+
 -- start oscillator
 start :: OscillatorNode -> WebAudio ()
 start = WebAudio . command . Start
@@ -498,7 +504,8 @@ sendProcedure d p@(MaxValue audioParam) _ =
 sendProcedure d p@(MinValue audioParam) _ =
   formatProcedure d p $ "MinValue(" <> showtJS audioParam <> ")"
 sendProcedure d p@(Value audioParam) _ =
-  formatProcedure d p $ "Value(" <> showtJS audioParam <> ")"  
+  formatProcedure d p $ "Value(" <> showtJS audioParam <> ")"
+sendProcedure d p@(CurrentTime) _ = formatProcedure d p "GetCurrentTime()"
   
 -- take text for function calls to be sent and add generate unique for port
 formatProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
@@ -512,11 +519,12 @@ formatProcedure d p call = do
 
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
-parseProcedure (CreateGain {}) o = uncurry7 GainNode <$> parseJSON o
-parseProcedure (DefaultValue {}) o = parseJSON o
-parseProcedure (MaxValue {}) o = parseJSON o
-parseProcedure (MinValue {}) o = parseJSON o
-parseProcedure (Value {}) o = parseJSON o
+parseProcedure (CreateGain {}) o       = uncurry7 GainNode <$> parseJSON o
+parseProcedure (DefaultValue {}) o     = parseJSON o
+parseProcedure (MaxValue {}) o         = parseJSON o
+parseProcedure (MinValue {}) o         = parseJSON o
+parseProcedure (Value {}) o            = parseJSON o
+parseProcedure (CurrentTime {}) o      = parseJSON o
 
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"

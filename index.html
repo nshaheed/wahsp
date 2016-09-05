@@ -68,6 +68,12 @@
 	      }
 	  }
 
+          function GetCurrentTime() {
+	      return function(u) {
+		  $.kc.reply(u,audioCtx.currentTime);
+	      }
+	  }
+
           function CreateGain(val) {
 	      return function(u) {
 		  var gainNode		= audioCtx.createGain();
