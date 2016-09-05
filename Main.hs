@@ -59,7 +59,7 @@ main :: IO ()
 main = do
   webAudio 3000 $ \doc -> do
     send doc $ do
-      osc1 <- createOscillator 400 0 Sine
+      osc1 <- createOscillator 200 0 Sine
       osc2 <- createOscillator 404 4 Sine
       gain' <- createGain 0.5
 
@@ -73,9 +73,15 @@ main = do
       -- let tt' = osc1 .||. eNode gain'
       -- let tt'' = osc1 .|. osc2 .||. eNode gain'
 
+      -- connecting an oscillator to another oscillator doesn't work, not enough inlets
+      -- let g = osc1 .|. osc2 .||. eNode osc2
       let g = osc1 .|. gain' .||. eCtx
-      -- trace (T.unpack (audioGraphConnect g) ) $ connect g
+
       connect g
+      -- connect g
+
+      -- let g' = osc1 .|. gain' .||. eNode osc2
+      -- let result = audioGraphConnect g'
       
       -- connects [Left osc1, Right gain] (Just AudioContext )
       -- connect osc1 osc2
@@ -415,13 +421,15 @@ runAP :: KC.Document -> ApplicativePacket Command Procedure a -> IO a
 runAP d pkt =
   case AP.superCommand pkt of
     Just a -> do -- is only commands
+      putStrLn ""
       cmds <- handlePacket d pkt ""
-      traceShow cmds $ KC.send d cmds
+      KC.send d cmds
       return a
     Nothing -> case pkt of
       AP.Command cmd -> do
-       cmds <- formatCommand cmd ""
-       trace "supercommand Nothing" $ KC.send d cmds
+        putStrLn ""
+        cmds <- formatCommand cmd ""
+        KC.send d cmds
       AP.Procedure p -> sendProcedure d p ""
       AP.Zip f g h   -> f <$> runAP d g <*> runAP d h
       AP.Pure p      -> pure p
@@ -478,14 +486,12 @@ formatCommand (Start osc) cmds       = return $ showtJS osc <> ".start();" <> cm
 formatCommand (StartWhen osc t) cmds = return $ showtJS osc <> ".start(" <> tshow t <> ");" <> cmds
 formatCommand (Stop osc) cmds        = return $ showtJS osc <> ".stop();" <> cmds
 formatCommand (StopWhen osc t) cmds  = return $ showtJS osc <> ".stop(" <> tshow t <> ");" <> cmds
--- formatCommand (Connect n1 n2) cmds   = return $ showtJS n1 <> ".connect(" <> showtJS n2 <> ");" <> cmds
-formatCommand (Connect g) cmds = trace "formatcommand" $ return $ audioGraphConnect g <> ";" <> cmds
--- formatCommand (Connects ag) cmds = return $ audioGraph ag <> ";" <> cmds
+formatCommand (Connect g) cmds = return $ audioGraphConnect g <> ";" <> cmds
 
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
-audioGraphConnect (Node (AudNode a) g)  = trace "node " $ showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
-audioGraphConnect (EndNode (AudNode n)) = trace "endnode" $ showtJS n
-audioGraphConnect (EndParam p)          = trace "endparam" $ showtJS p
+audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
+audioGraphConnect (EndNode (AudNode n)) = showtJS n
+audioGraphConnect (EndParam p)          = showtJS p
 audioGraphConnect (EndCtx c)            = showtJS c <> ".destination"
 
 -- yeah it's gross
