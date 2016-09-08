@@ -5,6 +5,71 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+{-|
+Module: Web.Audio
+License:
+Maintainer: Nicholas Shaheed
+Stability: Alpha
+
+@wahsp@ is a binding for Haskell to the Web Audio API ala @blank-canvas@.
+-}
+
+module Web.Audio
+  (
+    Command(..)
+  , AudioGraph(..)
+  , AudNode(..)
+  , connector
+  , (.|.)
+  , connectorLast
+  , (.||.)
+  , eNode
+  , eParam
+  , eCtx
+  , Procedure(..)
+  , AudioNode(..)
+  , OscillatorNode(..)
+  , GainNode(..)
+  , AudioParam(..)
+  , audioParamIdx
+  , audioContext
+  , ChannelCountMode
+  , AudioParamType
+  , showtJS
+  , createOscillator
+  , createGain
+  , maxValue
+  , minValue
+  , value
+  , currentTime
+  , start
+  , startWhen
+  , stop
+  , stopWhen
+  , disconnect
+  , disconnectOutput
+  , disconnectOutputInput
+  , disconnectDestNode
+  , disconnectDestNodeSpec
+  , disconnectDestParam
+  , disconnectDestParamSpec
+  , connect
+  , setValue
+  , setValueAtTime
+  , linearRampToValueAtTime
+  , exponentialRampToValueAtTime
+  , setTargetAtTime
+  , cancelScheduledValues
+  , WebAudio(..)
+  , send
+  , sendApp
+  , runAP
+  , webAudio
+  , WAOptions(..)
+  , OscillatorNodeType
+  ) where
+-- WAhsP - Web Audio haskell Package
+
 -- to add a command:
 -- add to Command data type
 -- create a function -> WebAudio ()
@@ -16,7 +81,6 @@
 
 -- first step: connect to js
 
-import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
 import Control.Natural
 import qualified Control.Remote.Applicative as APP
@@ -639,11 +703,6 @@ instance Num WAOptions where
                             weak = False
                           }
 
-oscType :: KC.Document -> OscillatorNodeType -> IO ()
-oscType doc t = do
-  KC.send doc (T.concat ["osc.type = '" , T.pack . show $ t , "';"])
-  -- KC.send doc "osc.type = 'square';"
-  
 data OscillatorNodeType = Sine | Square | Sawtooth | Triangle | Custom
      deriving (Eq)
 
