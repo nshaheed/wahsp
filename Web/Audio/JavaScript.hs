@@ -1,43 +1,17 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-} 
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Web.Audio.JavaScript where
 
--- import Control.Concurrent.STM
--- import Control.Monad(liftM2)
--- import Control.Natural
--- import qualified Control.Remote.Applicative as APP
--- import Control.Remote.Monad
--- import Control.Remote.Monad.Packet.Weak as WP
--- import Control.Remote.Monad.Packet.Strong as SP
--- import Control.Remote.Monad.Packet.Applicative as AP
--- import Control.Remote.Monad.Packet.Alternative as Alt
--- import qualified Data.Semigroup as SG
-
 import Data.Aeson (FromJSON(..),Value(..),withText)
 import Data.Aeson.Types (Parser,parse,Result(..))
--- import Data.Char
--- import Data.Default.Class
 import Data.Monoid ((<>))
 import qualified Data.Text as T
-
--- import Debug.Trace
-
--- import Network.Wai.Middleware.Static
-
--- import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Read
 import qualified Text.Read.Lex as L
 
--- import qualified Web.Scotty.Comet as KC
--- import Web.Scotty
-
 -- data types dealing directly with javascript
+
 data AudioParam = AudioParam AudioParamType Int
   deriving (Read,Show,Eq)
 
