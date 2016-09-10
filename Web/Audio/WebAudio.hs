@@ -5,13 +5,14 @@ module Web.Audio.WebAudio where
 
 import Web.Audio.JavaScript
 
+-- TODO: add     middleware :: [KC.Middleware],    
+-- | Various options when sending info to the browser
 data WAOptions = WAOptions
-  { port          :: Int,
-    events        :: [Int], -- not implemented yet, blank canvas uses [EventName],
-    debug         :: Bool,
-    root          :: String, -- location of static files
-    -- middleware :: [KC.Middleware],
-    weak          :: Bool
+  { port          :: Int,    -- ^ which port to send to
+    events        :: [Int],  -- ^ not implemented yet
+    debug         :: Bool,   -- ^ turns on debugging, defaults to 'False'
+    root          :: String, -- ^ location of static files
+    weak          :: Bool    -- ^ not implemented yet
   }
 
 -- webaudio options

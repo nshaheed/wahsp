@@ -4,31 +4,58 @@
 
 {-|
 Module: Web.Audio
-License:
+License: BSD(see LICENSE file)
 Maintainer: Nicholas Shaheed
 Stability: Alpha
 
-@wahsp@ is a binding for Haskell to the Web Audio API ala @blank-canvas@.
+@wahsp@ (Web Audio HaSkell Protocol) is a binding for Haskell to the
+<https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API Web Audio API> ala @blank-canvas@.
+Audio sources, effects, etc. can be combined, manipulated, and otherwise controlled using haskell
+and are then rendered in the the browser (see the above link for browser compatibility). 
 -}
 
 module Web.Audio
   (
-    Command(..)
+    -- * Set-Up
+    webAudio
+  , WAOptions(..)
   , AudioGraph(..)
   , AudNode(..)
-  , connector
+  -- * Connecting nodes, params, and the audio context
+  -- | The Web Audio API is comprised of nodes ('AudioNode's, 'AudioParam's, and the 'AudioContext')
+  -- that are connected, input to output, to form a chain 
+  -- comprised of sources, effects, and a destination.
+  --
+  -- This chain is typically organized as a /source -> effects -> destination/ where /destination/
+  -- is either the 'AudioContext' (if you actually want to produce sound in this chain), some
+  -- 'AudioParam' (if you want to control a param with an audio signal, e.g. a low-frequency
+  -- oscillator (lfo), or some 'AudioNode'.
+  --
+  -- To chain together 'AudioNode's and 'AudioParam's, use '.|.' and end the chain with '.||.'
+  -- For example:
+  --
+  -- @
+  -- osc1  <- 'createOscillator' 200 0 'Sine'
+  -- gain1 <- 'createGain' 0.5
+  -- 
+  -- 'connect' $ osc1 .|. gain1 .||. 'eCtx'
+  --
+  -- @
+  -- See the <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API official docs> for a more
+  -- detailed overview.
+  --
+  -- Connecting 
   , (.|.)
-  , connectorLast
   , (.||.)
+  , connector  
+  , connectorLast  
   , eNode
   , eParam
   , eCtx
-  , Procedure(..)
   , AudioNode(..)
   , OscillatorNode(..)
   , GainNode(..)
   , AudioParam(..)
-  , audioParamIdx
   , audioContext
   , ChannelCountMode
   , AudioParamType
@@ -39,10 +66,14 @@ module Web.Audio
   , minValue
   , value
   , currentTime
+  -- * Playback control
+  -- Time in the api is the number of seconds since the session has been instantiated.
+  -- ** 'OscillatorNode' specific playback controls
   , start
   , startWhen
   , stop
   , stopWhen
+  -- ** Disconnecting functions
   , disconnect
   , disconnectOutput
   , disconnectOutputInput
@@ -61,8 +92,6 @@ module Web.Audio
   , send
   , sendApp
   , runAP
-  , webAudio
-  , WAOptions(..)
   , OscillatorNodeType(..)
   ) where
 -- WAhsP - Web Audio haskell Package
@@ -108,49 +137,80 @@ import Web.Audio.WebAudio
 import qualified Web.Scotty.Comet as KC
 import Web.Scotty
 
--- WORKING EXAMPLE
+-- | 'webAudio' is the starting point for connecting and interacting with the API. A simple
+-- example of how to use this is:
+--
+-- @
+--  module Main where
+--  import Web.Audio
+--  
+--  main :: IO ()
+--  main = do
+--    'webAudio' 3000 $ \doc -> do
+--      'send' doc $ do
+--        osc1  <- 'createOscillator' 200 0 'Sine' -- create an 'OscillatorNode'
+--        gain1 <- 'createGain' 0.5              -- create a 'GainNode'
+--  
+--        'connect' $ osc1 .|. gain1 .||. 'eCtx'   -- connect these nodes together, and then connect them to the audio context
+--  
+--        'start' osc1 -- make sounds!
+-- @
+webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
+webAudio opts actions = do
+  kcomet <- KC.kCometPlugin -- get comet file path
+  dataDir <- getDataDir     -- get data (index.html, etc) file path
+
+  let pol = only [ ("",dataDir ++ "/index.html")
+                 , (dataDir ++ "/js/kansas-comet.js",kcomet)
+                 ]
+        <|> (hasPrefix "js/") >-> addBase "."
+
+  let kcopts = KC.Options {KC.prefix = "/example", KC.verbose = if debug opts then 3 else 0}
+  
+  connectApp <- KC.connect kcopts $ \kc_doc -> do
+    actions kc_doc
+
+  scotty (port opts) $ do
+    middleware $ staticPolicy pol
+    connectApp
+    
+  return()
+
+
 -- main :: IO ()
 -- main = do
 --   webAudio 3000 $ \doc -> do
 --     send doc $ do
---       _ <- createOscillator 400 0 Sine
---       _ <- createOscillator 404 4 Sine
+--       osc1 <- createOscillator 200 0 Sine
+--       -- osc2 <- createOscillator 2 0 Sine
+--       gain1 <- createGain 0.5
+
+--       val <- value (frequencyOsc osc1)
+--       def <- defaultValue (frequencyOsc osc1)
+--       max <- maxValue (frequencyOsc osc1)
+--       min <- minValue (frequencyOsc osc1)
+--       -- connecting an oscillator to another oscillator (or and audio source to any other
+--       -- audio source) doesn't work, no inlets
+--       let g = osc1 .|. gain1 .||. eCtx
+--       -- let g' = osc2 .||. eParam (gain gain1)
+--       -- traceShow val $ traceShow def $ traceShow max $ traceShow min $
+--       connect g
+--       -- connect g'
+
+--       -- start osc1
+--       -- startWhen osc1 2
+
+--       -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
+
+--       -- disconnectOutput osc1 -- only 0 is output
+--       -- disconnectDestParam osc1 (gain gain1) 
+--       -- stop osc1
+--       -- stopWhen osc1 5
+
+--       -- lfoEx
+--       setValueTests
+--       valueTests
 --       return ()
-
-main :: IO ()
-main = do
-  webAudio 3000 $ \doc -> do
-    send doc $ do
-      osc1 <- createOscillator 200 0 Sine
-      -- osc2 <- createOscillator 2 0 Sine
-      gain1 <- createGain 0.5
-
-      val <- value (frequencyOsc osc1)
-      def <- defaultValue (frequencyOsc osc1)
-      max <- maxValue (frequencyOsc osc1)
-      min <- minValue (frequencyOsc osc1)
-      -- connecting an oscillator to another oscillator (or and audio source to any other
-      -- audio source) doesn't work, no inlets
-      let g = osc1 .|. gain1 .||. eCtx
-      -- let g' = osc2 .||. eParam (gain gain1)
-      -- traceShow val $ traceShow def $ traceShow max $ traceShow min $
-      connect g
-      -- connect g'
-
-      -- start osc1
-      -- startWhen osc1 2
-
-      -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
-
-      -- disconnectOutput osc1 -- only 0 is output
-      -- disconnectDestParam osc1 (gain gain1) 
-      -- stop osc1
-      -- stopWhen osc1 5
-
-      -- lfoEx
-      setValueTests
-      valueTests
-      return ()
 
 setValueTests = do
   osc1 <- createOscillator 200 0 Sine
@@ -213,81 +273,112 @@ lfoEx = do
   -- start both the oscillators
   start osc1 
   start lfo
-      
-connector :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
-connector node = Node (AudNode node)
 
+-- | Connect the front of the chain of nodes together, end the chain with '.||.'
 (.|.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
 (.|.) a b = connector a b
 infix 7 .|.
 
-connectorLast :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
-connectorLast a b = Node (AudNode a) b
-
+-- | End the chain of 'AudioNode's.
+--
+-- To end the chain at the audio context:
+--  
+-- > connect $ osc1 .|. gain1 .||. eCtx
+--
+-- To end with an 'AudioParam' (that is located in the 'AudioNode' /gain1/):
+--
+-- > connect $ osc1 .|. gain1 .||. eParam (gain gain1)
+--
+-- To end with the 'AudioNode' /gain1/:
+--
+-- > connect $ osc1 .|. gain1 .||. eNode gain1
 (.||.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
 (.||.) = connectorLast
 
+-- | function implementation of '.|.'
+connector :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
+connector node = Node (AudNode node)
+
+-- | function implementation of '.||.'
+connectorLast :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
+connectorLast a b = Node (AudNode a) b
+
 infix 8 .||.
 
--- eNode :: AudioNode a => a -> AudioNode AudNode AudNode
+-- | Set the ending node to an 'AudioNode'
 eNode :: AudioNode a => a -> AudioGraph AudNode AudNode
 eNode a = EndNode (AudNode a)
 
+-- | Set the ending node to an 'AudioParam'
 eParam :: AudioParam -> AudioGraph AudNode AudioParam
 eParam = EndParam
 
+-- | Set the ending node to the 'AudioContext' 
 eCtx :: AudioGraph AudNode AudioContext
 eCtx = EndCtx AudioContext
 
-audioParamIdx :: AudioParam -> Int
-audioParamIdx (AudioParam _ i) = i
+-- TODO: decide if it's appropriate to have this exposed
+-- audioParamIdx :: AudioParam -> Int
+-- audioParamIdx (AudioParam _ i) = i
 
+-- | A function that returns an 'AudioContext'
 audioContext = AudioContext
 
 -- | creates an oscillator with a frequency (in hertz), a detuning value (in cents), and an OscillatorNodeType (e.g. a sine wave, square wave, etc.)
-createOscillator :: Double -> Double -> OscillatorNodeType -> WebAudio OscillatorNode 
+createOscillator :: Double -- ^ Frequency (in hertz)
+                 -> Double -- ^ Detuning (in cents)
+                 -> OscillatorNodeType -- ^ Waveform type
+                 -> WebAudio OscillatorNode 
 createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq det osctype)
 
+-- | Create a gain node with a gain value, typically between /0.0/ and /1.0/
 createGain :: Double -> WebAudio GainNode
 createGain val = WebAudio $ procedure (CreateGain val)
 
+-- | Get the default value of an 'AudioParam' (this could vary from browser to browser)
 defaultValue :: AudioParam -> WebAudio Double
 defaultValue p = WebAudio $ procedure (DefaultValue p)
 
+-- | Get the maximum value of an 'AudioParam'
 maxValue :: AudioParam -> WebAudio Double
 maxValue p = WebAudio $ procedure (MaxValue p)
 
+-- | Get the minimum value of an 'AudioParam'
 minValue :: AudioParam -> WebAudio Double
 minValue p = WebAudio $ procedure (MinValue p)
 
+-- | Get the current value of an 'AudioParam'
 value :: AudioParam -> WebAudio Double
 value p = WebAudio $ procedure (Value p)
 
+-- | Get the current time in the sessions (in seconds).  This represents the amount of time that has
+-- passed since the session was instantiated
 currentTime :: WebAudio Double
 currentTime = WebAudio $ procedure (CurrentTime)
 
--- start oscillator
+-- | Immediately start playback of an 'OscillatorNode' 
 start :: OscillatorNode -> WebAudio ()
 start = WebAudio . command . Start
 
--- wait t seconds to start playing the oscillator
+-- | Start playing an 'OscillatorNode' at \t\ seconds.  If \t\ has already passed, it will immediately stop
 startWhen :: OscillatorNode -> Double -> WebAudio ()
 startWhen o t = WebAudio . command $ StartWhen o t
 
--- stop oscillator
+-- | Immediately stop playback of an 'OscillatorNode'
 stop :: OscillatorNode -> WebAudio ()
 stop = WebAudio . command . Stop
 
--- wait t seconds before stopping the oscillator
+-- | Stop playing an 'OscillatorNode' at \t\ seconds.  If \t\ has already passed, it will immediately stop
 stopWhen :: OscillatorNode -> Double -> WebAudio ()
 stopWhen o t = WebAudio . command $ StopWhen o t
 
 -- disconnect functions
 
--- disconnect all outgoing connections from AudioNode n
+-- | Disconnect all outgoing connections from AudioNode n
 disconnect :: AudioNode a => a -> WebAudio ()
 disconnect src = WebAudio . command $ Disconnect src
 
+-- | Disconnect a specific output 
 disconnectOutput :: AudioNode a => a -> Int -> WebAudio ()
 disconnectOutput src idx = WebAudio . command $ DisconnectOutput src idx
 
@@ -367,27 +458,6 @@ runAP d pkt =
           gcmds <- handlePacket doc g cmds
           hcmds <- handlePacket doc h gcmds
           return hcmds
-
-webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
-webAudio opts actions = do
-  kcomet <- KC.kCometPlugin
-  dataDir <- getDataDir
-
-  let pol = only [ ("",dataDir ++ "/index.html")
-                 , (dataDir ++ "/js/kansas-comet.js",kcomet)
-                 ]
-        <|> (hasPrefix "js/") >-> addBase "."
-
-  let kcopts = KC.Options {KC.prefix = "/example", KC.verbose = if debug opts then 3 else 0}
-  
-  connectApp <- KC.connect kcopts $ \kc_doc -> do
-    actions kc_doc
-
-  scotty (port opts) $ do
-    middleware $ staticPolicy pol
-    connectApp
-    
-  return()
 
 -- refactor to be easier to add stuff
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
