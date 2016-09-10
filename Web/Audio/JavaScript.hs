@@ -1,0 +1,236 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-} 
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+module Web.Audio.JavaScript where
+
+-- import Control.Concurrent.STM
+-- import Control.Monad(liftM2)
+-- import Control.Natural
+-- import qualified Control.Remote.Applicative as APP
+-- import Control.Remote.Monad
+-- import Control.Remote.Monad.Packet.Weak as WP
+-- import Control.Remote.Monad.Packet.Strong as SP
+-- import Control.Remote.Monad.Packet.Applicative as AP
+-- import Control.Remote.Monad.Packet.Alternative as Alt
+-- import qualified Data.Semigroup as SG
+
+import Data.Aeson (FromJSON(..),Value(..),withText)
+import Data.Aeson.Types (Parser,parse,Result(..))
+-- import Data.Char
+-- import Data.Default.Class
+import Data.Monoid ((<>))
+import qualified Data.Text as T
+
+-- import Debug.Trace
+
+-- import Network.Wai.Middleware.Static
+
+-- import System.IO.Unsafe (unsafePerformIO)
+
+import Text.Read
+import qualified Text.Read.Lex as L
+
+-- import qualified Web.Scotty.Comet as KC
+-- import Web.Scotty
+
+-- data types dealing directly with javascript
+data AudioParam = AudioParam AudioParamType Int
+  deriving (Read,Show,Eq)
+
+data GainNode = GainNode {
+  indexGain                 :: !Int,
+  gain                      :: !AudioParam,
+  numberOfInputsGain        :: !Int,
+  numberOfOutputsGain       :: !Int,
+  channelCountGain          :: !Int,
+  channelCountModeGain      :: !ChannelCountMode,
+  channelInterpretationGain :: !ChannelInterpretation  
+}
+  deriving (Show, Read, Eq)
+
+-- the audio context, this is pre-existing in the js, and only one is needed
+data AudioContext = AudioContext
+  deriving (Eq, Read)
+
+instance Show AudioContext where
+  show AudioContext = "audioCtx"
+
+data ChannelCountMode = Max | ClampedMax | Explicit
+  deriving (Eq)
+
+instance Show ChannelCountMode where
+  show Max        = "max"
+  show ClampedMax = "clamped-max"
+  show Explicit   = "explicit"
+
+instance Read ChannelCountMode where
+  readPrec =
+    parens
+    ( do L.Ident s <- lexP
+         case s of
+           "max"         -> return Max
+           "clamped-max" -> return ClampedMax
+           "explicit"    -> return Explicit
+           _             -> pfail
+    )
+  readListPrec = readListPrecDefault
+  readList     = readListDefault
+
+
+data AudioParamType = Gain | Frequency | Detune
+  deriving (Eq,Read)
+
+instance Show AudioParamType where
+  show Gain = "gain"
+  show Frequency = "frequency"
+  
+data ChannelInterpretation = Speakers | Discrete
+  deriving (Eq)
+
+
+instance Read ChannelInterpretation where
+  readPrec =
+    parens
+    ( do L.Ident s <- lexP
+         case s of
+           "speakers" -> return Speakers
+           "discrete" -> return Discrete
+           _          -> pfail
+    )
+  readListPrec = readListPrecDefault
+  readList     = readListDefault
+
+instance Show ChannelInterpretation where
+  show Speakers = "speakers"
+  show Discrete = "discrete"
+  
+data OscillatorNodeType = Sine | Square | Sawtooth | Triangle | Custom
+     deriving (Eq)
+
+instance Read OscillatorNodeType where
+  readPrec =
+    parens
+    ( do L.Ident s <- lexP
+         case s of
+           "sine"     -> return Sine
+           "square"   -> return Square
+           "sawtooth" -> return Sawtooth
+           "triangle" -> return Triangle
+           "custom"   -> return Custom
+           _          -> pfail
+    )
+  readListPrec = readListPrecDefault
+  readList     = readListDefault
+
+instance Show OscillatorNodeType where
+  show Sine     = "sine"
+  show Square   = "square"
+  show Sawtooth = "sawtooth"
+  show Triangle = "triangle"
+  show Custom   = "custom"
+
+-- | OscillatorNode represents a periodic waveform with a frequency (in hertz), detuning (in cents), an OscillatorNodeType (e.g. a sine wave, square wave, etc.), etc.
+
+data OscillatorNode = OscillatorNode {
+  indexOsc                 :: !Int,
+  frequencyOsc             :: !AudioParam,
+  detuneOsc                :: !AudioParam,
+  typeOsc                  :: !OscillatorNodeType,
+  numberOfInputsOsc        :: !Int,
+  numberOfOutputsOsc       :: !Int,
+  channelCountOsc          :: !Int,
+  channelCountModeOsc      :: !ChannelCountMode,
+  channelInterpretationOsc :: !ChannelInterpretation
+}
+  deriving (Read,Show,Eq)
+
+-- classes for javascript obj
+-- | And AudioNode is an interface for any audio processing module in the Web Audio API
+class JSArg a => AudioNode a where
+  numberOfInputs        :: a -> Int
+  numberOfOutputs       :: a -> Int
+  channelCount          :: a -> Int -- potentially change to maybe
+  channelCountMode      :: a -> ChannelCountMode
+  channelInterpretation :: a -> ChannelInterpretation
+
+-- | Instantizes OscillatorNode with the default values
+instance AudioNode OscillatorNode where
+  numberOfInputs        = numberOfInputsOsc
+  numberOfOutputs       = numberOfOutputsOsc
+  channelCount          = channelCountOsc
+  channelCountMode      = channelCountModeOsc
+  channelInterpretation = channelInterpretationOsc
+
+instance AudioNode GainNode where
+  numberOfInputs        = numberOfInputsGain
+  numberOfOutputs       = numberOfOutputsGain
+  channelCount          = channelCountGain
+  channelCountMode      = channelCountModeGain
+  channelInterpretation = channelInterpretationGain  
+
+-- JSArg goes from data type javascript rep of that data
+class JSArg a where
+      -- | Display a value as JavaScript data.
+      showtJS :: a -> T.Text
+
+instance JSArg OscillatorNode where
+  showtJS = jsOscillatorNode
+
+jsOscillatorNode :: OscillatorNode -> T.Text
+jsOscillatorNode (OscillatorNode n _ _ _ _ _ _ _ _) = "sounds[" <> tshow n <> "]"
+
+instance JSArg AudioContext where
+  showtJS a = tshow a
+
+instance JSArg AudioParam where
+  showtJS (AudioParam ptype idx) = "sounds[" <> tshow idx <> "]." <> tshow ptype
+
+instance JSArg GainNode where
+  showtJS = jsGainNode
+
+jsGainNode :: GainNode -> T.Text
+jsGainNode (GainNode n _ _ _ _ _ _ ) = "sounds[" <> tshow n <> "]"
+
+instance JSArg Int where
+  showtJS = tshow
+
+instance JSArg Double where
+  showtJS = tshow
+
+tshow :: Show a => a -> T.Text
+tshow a = T.pack $ show a
+
+-- parseJSON
+instance FromJSON ChannelCountMode where
+  parseJSON = withText "ChannelCountMode" $ \s ->
+    case s of
+      "max"         -> return Max
+      "clamped-max" -> return ClampedMax
+      "explicit"    -> return Explicit
+      _             -> fail "Parsing ChannelCountMode value failed: expected \"max\", \"clamped-max\", or \"Explicit\""
+
+
+instance FromJSON ChannelInterpretation where
+  parseJSON = withText "ChannelInterpretation" $ \s ->
+    case s of
+      "speakers" -> return Speakers
+      "discrete" -> return Discrete
+      _          -> fail "Parsing ChannelInterpretation value failed: expected \"speakers\", or \"discrete\""  
+
+
+instance FromJSON OscillatorNodeType where
+  parseJSON = withText "OscillatorNodeType" $ \s ->
+    case s of
+      "sine"     -> return Sine
+      "square"   -> return Square
+      "sawtooth" -> return Sawtooth
+      "triangle" -> return Triangle
+      "custom"   -> return Custom      
+      _ -> fail "Parsing OscillatorNodeType value failed: expected \"sine\", \"square\", \"sawtooth\", \"Triangel\", or \"custom\""
+
+instance FromJSON AudioParam where
+  parseJSON = withText "AudioParam" $ \s -> return (read $ T.unpack s :: AudioParam)
