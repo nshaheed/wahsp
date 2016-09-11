@@ -12,27 +12,36 @@ import qualified Text.Read.Lex as L
 
 -- data types dealing directly with javascript
 
+-- | An 'AudioParam' is an interface to a value that is related to the actual generation of audio,
+-- it is usually related to a specific 'AudioNode'.  The 'Int' is for storing of the index for
+-- retrieving in the javascript.
 data AudioParam = AudioParam AudioParamType Int
   deriving (Read,Show,Eq)
 
+-- | A 'GainNode' is an 'AudioNode' that controls the gain of a signal, you connect a sound source to
+-- it and it will make that sound louder or softer. This actual value of the gain is usually between
+-- \0.0\ and \1.0\.  \0.0\ will mute the sound, going higher than \1.0\ will increase the volume of the
+-- sound.
 data GainNode = GainNode {
-  indexGain                 :: !Int,
-  gain                      :: !AudioParam,
-  numberOfInputsGain        :: !Int,
-  numberOfOutputsGain       :: !Int,
-  channelCountGain          :: !Int,
-  channelCountModeGain      :: !ChannelCountMode,
-  channelInterpretationGain :: !ChannelInterpretation  
+  indexGain                 :: !Int, -- ^ Index of this particular node in the javascript, for internal use
+  gain                      :: !AudioParam, -- ^ Handles the actual value of the gain
+  numberOfInputsGain        :: !Int, -- ^ The number of inputs that the 'GainNode' has
+  numberOfOutputsGain       :: !Int, -- ^ The number of outputs that the 'GainNode' has
+  channelCountGain          :: !Int, -- ^ An 'Int' that determines how many channels are used when up-mixing and down-mixing connections
+  channelCountModeGain      :: !ChannelCountMode, 
+  channelInterpretationGain :: !ChannelInterpretation  -- ^ Specifies how channels are interpretated when up-mixing and down-mixing
 }
   deriving (Show, Read, Eq)
 
--- the audio context, this is pre-existing in the js, and only one is needed
+-- | The audio context, this is pre-existing in the javascript, only one is needed, and this is a reference to it
 data AudioContext = AudioContext
   deriving (Eq, Read)
 
 instance Show AudioContext where
   show AudioContext = "audioCtx"
 
+-- | How channels will be matched between connected inputs and output.
+-- <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/channelCountMode Detailed description.>
 data ChannelCountMode = Max | ClampedMax | Explicit
   deriving (Eq)
 
@@ -55,16 +64,19 @@ instance Read ChannelCountMode where
   readList     = readListDefault
 
 
+-- | Which type of 'AudioParam'
 data AudioParamType = Gain | Frequency | Detune
   deriving (Eq,Read)
 
 instance Show AudioParamType where
-  show Gain = "gain"
+  show Gain      = "gain"
   show Frequency = "frequency"
-  
+  show Detune    = "detune"
+
+-- | Specifies how channels are interpretated when up-mixing and down-mixing.
+-- <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/channelInterpretation Detailed description>
 data ChannelInterpretation = Speakers | Discrete
   deriving (Eq)
-
 
 instance Read ChannelInterpretation where
   readPrec =
@@ -81,8 +93,9 @@ instance Read ChannelInterpretation where
 instance Show ChannelInterpretation where
   show Speakers = "speakers"
   show Discrete = "discrete"
-  
-data OscillatorNodeType = Sine | Square | Sawtooth | Triangle | Custom
+
+-- | What waveform is used in an 'OscillatorNode'
+data OscillatorNodeType = Sine | Square | Sawtooth | Triangle | Custom -- ^ Not implemented yet
      deriving (Eq)
 
 instance Read OscillatorNodeType where
@@ -108,7 +121,6 @@ instance Show OscillatorNodeType where
   show Custom   = "custom"
 
 -- | OscillatorNode represents a periodic waveform with a frequency (in hertz), detuning (in cents), an OscillatorNodeType (e.g. a sine wave, square wave, etc.), etc.
-
 data OscillatorNode = OscillatorNode {
   indexOsc                 :: !Int,
   frequencyOsc             :: !AudioParam,
@@ -122,8 +134,7 @@ data OscillatorNode = OscillatorNode {
 }
   deriving (Read,Show,Eq)
 
--- classes for javascript obj
--- | And AudioNode is an interface for any audio processing module in the Web Audio API
+-- | An AudioNode is an interface for any audio processing module in the Web Audio API
 class JSArg a => AudioNode a where
   numberOfInputs        :: a -> Int
   numberOfOutputs       :: a -> Int
@@ -131,7 +142,6 @@ class JSArg a => AudioNode a where
   channelCountMode      :: a -> ChannelCountMode
   channelInterpretation :: a -> ChannelInterpretation
 
--- | Instantizes OscillatorNode with the default values
 instance AudioNode OscillatorNode where
   numberOfInputs        = numberOfInputsOsc
   numberOfOutputs       = numberOfOutputsOsc
@@ -146,7 +156,7 @@ instance AudioNode GainNode where
   channelCountMode      = channelCountModeGain
   channelInterpretation = channelInterpretationGain  
 
--- JSArg goes from data type javascript rep of that data
+-- | JSArg goes from data type javascript representation of that data
 class JSArg a where
       -- | Display a value as JavaScript data.
       showtJS :: a -> T.Text
