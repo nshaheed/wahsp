@@ -19,6 +19,7 @@ module Web.Audio
     -- * Set-Up
     webAudio
   , WAOptions(..)
+  , send  
   -- , AudioGraph(..)
   -- , AudNode(..)
   -- * Connecting nodes, params, and the audio context
@@ -44,7 +45,7 @@ module Web.Audio
   -- See the <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API official docs> for a more
   -- detailed overview.
   --
-  -- Connecting 
+  , connect  
   , (.|.)
   , (.||.)
   , connector  
@@ -52,16 +53,22 @@ module Web.Audio
   , eNode
   , eParam
   , eCtx
+  -- * Data Types
+  , WebAudio(..)  
   , AudioNode(..)
   , OscillatorNode(..)
+  , OscillatorNodeType(..)    
   , GainNode(..)
   , AudioParam(..)
-  , audioContext
   , ChannelCountMode
   , AudioParamType
   -- , showtJS
+  -- * Procedures
+  -- ** Instantiation functions
   , createOscillator
   , createGain
+  -- ** Other Procedures
+  , audioContext    
   , maxValue
   , minValue
   , value
@@ -81,16 +88,14 @@ module Web.Audio
   , disconnectOutputInput
   , disconnectDestParam
   , disconnectDestParamSpec
-  , connect
+  -- * Change 'AudioParam' value
+  -- | Different functions for altering the values of 'AudioParam's (immediately, ramping, etc.)
   , setValue
   , setValueAtTime
   , linearRampToValueAtTime
   , exponentialRampToValueAtTime
   , setTargetAtTime
   , cancelScheduledValues
-  , WebAudio(..)
-  , send
-  , OscillatorNodeType(..)
   ) where
 
 -- to add a command:
@@ -147,6 +152,8 @@ import Web.Scotty
 --  
 --        'start' osc1 -- make sounds!
 -- @
+-- 
+-- When running, go to <http://localhost:3000/> in a browser to hear a 200Hz sine wave!
 webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
 webAudio opts actions = do
   kcomet <- KC.kCometPlugin -- get comet file path
