@@ -25,12 +25,12 @@ module Web.Audio
   -- * Connecting nodes, params, and the audio context
   -- | The Web Audio API is comprised of nodes ('AudioNode's, 'AudioParam's, and the 'AudioContext')
   -- that are connected, input to output, to form a chain 
-  -- comprised of sources, effects, and a destination.  The chain is constructed as an 'AudioGraph'
+  -- comprised of sources, effects, and a destination.
   --
   -- This chain is typically organized as a /source -> effects -> destination/ where /destination/
   -- is either the 'AudioContext' (if you actually want to produce sound in this chain), some
   -- 'AudioParam' (if you want to control a param with an audio signal, e.g. a low-frequency
-  -- oscillator (lfo), or some 'AudioNode'.  
+  -- oscillator (lfo), or some 'AudioNode'.
   --
   -- To chain together 'AudioNode's and 'AudioParam's, use '.|.' and end the chain with '.||.'
   -- For example:
@@ -83,9 +83,9 @@ module Web.Audio
   -- ** Disconnecting functions
   , disconnect
   , disconnectOutput
-  , disconnectDestNode
-  , disconnectDestNodeSpec  
   , disconnectOutputInput
+  , disconnectDestNode
+  , disconnectDestNodeSpec
   , disconnectDestParam
   , disconnectDestParamSpec
   -- * Change 'AudioParam' value
@@ -97,12 +97,18 @@ module Web.Audio
   , setTargetAtTime
   , cancelScheduledValues
   ) where
+-- WAhsP - Web Audio haskell Package
 
 -- to add a command:
 -- add to Command data type
 -- create a function -> WebAudio ()
 -- add pattern to formatCommand
 -- add pattern to sendProcedure
+
+-- what I want to do:
+-- send over to js (map to web audio functionality)
+
+-- first step: connect to js
 
 import Control.Concurrent.STM
 import Control.Natural
@@ -381,102 +387,68 @@ disconnect src = WebAudio . command $ Disconnect src
 disconnectOutput :: AudioNode a => a -> Int -> WebAudio ()
 disconnectOutput src idx = WebAudio . command $ DisconnectOutput src idx
 
--- | Remove the connection from the source node to the destination node
-disconnectDestNode :: AudioNode a =>
-                      a  -- ^ Source node
-                   -> a -- ^ Destionation node
-                   -> WebAudio ()
-disconnectDestNode src dest = WebAudio . command $ DisconnectDestNode src dest
-
--- | Specify which output to disconnect from a source node to a destination node 
-disconnectDestNodeSpec :: AudioNode a => a -- ^ Source node
-                       -> a -- ^ Destination node
-                       -> Int -- ^ Index of output
-                       -> WebAudio ()
-disconnectDestNodeSpec src dest idx = WebAudio . command $ DisconnectDestNodeSpec src dest idx
-
-
--- | Disconnect the connection from the source node to the destination node along the specified output node of the
--- source and the specified input node of the destination
-disconnectOutputInput :: AudioNode a => a -- ^ Source node
-                      -> a -- ^ Destination node
-                      -> Int -- ^ Output index
-                      -> Int -- ^ Input index
-                      -> WebAudio ()
+disconnectOutputInput :: AudioNode a => a -> a -> Int -> Int -> WebAudio ()
 disconnectOutputInput src dest output input = WebAudio . command $
                                               DisconnectOutputInput src dest output input
+  
+disconnectDestNode :: AudioNode a => a -> a -> WebAudio ()
+disconnectDestNode src dest = WebAudio . command $ DisconnectDestNode src dest
 
--- | Disconnects an 'AudioNode' and an 'AudioParam'  
+disconnectDestNodeSpec :: AudioNode a => a -> a -> Int -> WebAudio ()
+disconnectDestNodeSpec src dest idx = WebAudio . command $ DisconnectDestNodeSpec src dest idx
+
 disconnectDestParam :: AudioNode a => a -> AudioParam -> WebAudio ()
 disconnectDestParam src dest = WebAudio . command $ DisconnectDestParam src dest
 
--- | Disconnect an 'AudioNode' from an 'AudioParam' along the specified output of the 'AudioNode'
 disconnectDestParamSpec :: AudioNode a => a -> AudioParam -> Int -> WebAudio ()
 disconnectDestParamSpec src dest idx = WebAudio . command $ DisconnectDestParamSpec src dest idx
 
--- | command to send the 'AudioGraph' to the browser
 connect :: AudioGraph AudNode b -> WebAudio ()
 connect g = WebAudio . command $ Connect g
 
 -- Set Value functions
 
--- | Sets the value of the given 'AudioParam'
 setValue :: AudioParam -> Double -> WebAudio ()
 setValue p val = WebAudio . command $ SetValue p val
+  
+setValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
+setValueAtTime p val startTime = WebAudio . command $ SetValueAtTime p val startTime
 
--- | Sets the value of the given 'AudioParam' at the specified time, cannot be negative
-setValueAtTime :: AudioParam
-               -> Double -- ^ Value
-               -> Double -- ^ Start Time
-               -> WebAudio ()
-setValueAtTime p val startTime | startTime < 0 = error "time cannot be negative"
-                               | otherwise     = WebAudio . command $ SetValueAtTime p val startTime
-
--- | Make a smooth, linear ramp from the current value of an 'AudioParam' to the new value
-linearRampToValueAtTime :: AudioParam
-                        -> Double -- ^ Value
-                        -> Double -- ^ Amount of time it takes to transition (in seconds)
-                        -> WebAudio ()
+linearRampToValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
 linearRampToValueAtTime p val endTime = WebAudio . command $ LinearRampToValueAtTime  p val endTime
 
--- | Make a smooth, exponential ramp from the current value of an 'AudioParam' to the new value
 exponentialRampToValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
 exponentialRampToValueAtTime p val endTime = WebAudio . command $
   ExponentialRampToValueAtTime p val endTime
 
--- | Exponentially change the value of an 'AudioParam'.  Uses a time constant to alter the rate
--- of change, the larger the time constant, the slower the transition is.
-setTargetAtTime :: AudioParam
-                -> Double -- ^ Value
-                -> Double -- ^ Start time
-                -> Double -- ^ Time constant
-                -> WebAudio ()
+setTargetAtTime :: AudioParam -> Double -> Double -> Double -> WebAudio ()
 setTargetAtTime p target startTime timeConstant =
   WebAudio . command $ SetTargetAtTime  p target startTime timeConstant
-
--- | Cancels all future scheduled changes to the 'AudioParam' after a given start time
+  
 cancelScheduledValues :: AudioParam -> Double -> WebAudio ()
 cancelScheduledValues p startTime = WebAudio . command $ CancelScheduledValues p startTime
 
--- | Send the web audio commands to the browser to be realized
 send :: KC.Document -> WebAudio a -> IO a
 send = sendApp
 
 sendApp :: KC.Document -> WebAudio a -> IO a
 sendApp d (WebAudio m) = (run $ runMonad $ nat (runAP d)) m
 
+-- runAP :: KC.Document -> WebAudio a -> IO a
 runAP :: KC.Document -> ApplicativePacket Command Procedure a -> IO a
 runAP d pkt =
   case AP.superCommand pkt of
     Just a -> do -- is only commands
+      putStrLn ""
       cmds <- handlePacket d pkt ""
       KC.send d cmds
       return a
-    Nothing -> case pkt of -- is not just commands
+    Nothing -> case pkt of
       AP.Command cmd -> do
-        cmds <- formatCommand cmd "" -- format command for being interpreted as javascript and sends
-        KC.send d cmds               -- to the browser
-      AP.Procedure p -> sendProcedure d p "" -- send over procedures
+        putStrLn ""
+        cmds <- formatCommand cmd ""
+        KC.send d cmds
+      AP.Procedure p -> sendProcedure d p ""
       AP.Zip f g h   -> f <$> runAP d g <*> runAP d h
       AP.Pure p      -> pure p
       
@@ -492,7 +464,7 @@ runAP d pkt =
           hcmds <- handlePacket doc h gcmds
           return hcmds
 
--- formats Procedures into javascript and sends them to the browser
+-- refactor to be easier to add stuff
 sendProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 sendProcedure d p@(CreateOscillator freq det nodetype) _ =
   formatProcedure d p $ "CreateOscillator(" <> tshow freq <> "," <> tshow det <> ",'" <>
@@ -519,7 +491,6 @@ formatProcedure d p call = do
     Error msg -> fail msg
     Success a -> return a
 
---  Parse the results returned from calling a procedure
 parseProcedure :: Procedure a -> Value -> Parser a
 parseProcedure (CreateOscillator {}) o = uncurry9 OscillatorNode <$> parseJSON o
 parseProcedure (CreateGain {}) o       = uncurry7 GainNode <$> parseJSON o
@@ -529,7 +500,6 @@ parseProcedure (MinValue {}) o         = parseJSON o
 parseProcedure (Value {}) o            = parseJSON o
 parseProcedure (CurrentTime {}) o      = parseJSON o
 
--- formats Procedures into javascript and returns the resulting text
 formatCommand :: Command -> T.Text -> IO T.Text
 formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start();"
 formatCommand (StartWhen osc t) cmds = return $ cmds <> showtJS osc <> ".start(" <> tshow t <> ");"
@@ -562,15 +532,11 @@ formatCommand (SetTargetAtTime p target startTime timeConstant) cmds = return $ 
   showtJS timeConstant <> ");"
 formatCommand (CancelScheduledValues p startTime ) cmds = return $ cmds <>
   showtJS p <> ".cancelScheduledValues(" <> showtJS startTime <> ");"
-
-
+  
 {-# NOINLINE uniqVar #-}
--- a counter to ensure that a unique port will be used each time a the kansas-comet tries to get
--- a reply
 uniqVar :: TVar Int
 uniqVar = unsafePerformIO $ newTVarIO 0
 
--- retrieve a unique port and increase the counter by one
 getUniq :: STM Int
 getUniq = do
       u <- readTVar uniqVar

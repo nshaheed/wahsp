@@ -15,7 +15,6 @@ import qualified Data.Text as T
 import Web.Audio.JavaScript
 import Web.Audio.WebAudio
 
--- | Alls the different commands available
 data Command :: * where
   Start                        :: OscillatorNode -> Command
   StartWhen                    :: OscillatorNode -> Double -> Command
@@ -36,7 +35,6 @@ data Command :: * where
   SetTargetAtTime              :: AudioParam -> Double -> Double -> Double -> Command
   CancelScheduledValues      :: AudioParam -> Double -> Command
 
--- | All the different procedures (commands that are time-sensitive or return values)
 data Procedure     :: * -> * where
   CreateOscillator :: Double -> Double -> OscillatorNodeType -> Procedure OscillatorNode
   CreateGain       :: Double -> Procedure GainNode
@@ -55,9 +53,7 @@ instance SG.Semigroup a => SG.Semigroup (WebAudio a) where
 instance Monoid a => Monoid (WebAudio a) where
   mappend = liftM2 mappend
   mempty  = return mempty
-
--- | Formats an 'AudioGraph' into a textual javascript representation, e.g.
--- @"osc.connect(gain.connect(audiocontext.destination))"@
+  
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
 audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
 audioGraphConnect (EndNode (AudNode n)) = showtJS n
