@@ -22,7 +22,6 @@ data-files:
     js/jquery.js
     js/jquery-json.js
     js/jquery-ui.js
-    js/kansas-comet.js
                    
 library
   exposed-modules:     Web.Audio
