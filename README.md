@@ -2,7 +2,7 @@
 
 ### Overview
 *wahsp* (Web Audio HaSkell Protocol) is a binding for Haskell to the
-[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) ala *blank-canvas@*
+[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) ala *blank-canvas*
 Audio sources, effects, etc. can be combined, manipulated, and otherwise controlled using haskell
 and are then rendered in the the browser (see the above link for browser compatibility).
 
@@ -14,6 +14,8 @@ from the repo.
 #### Full installation instructions:
 
 ```
+git clone https://github.com/nshaheed/WebAudioHs.git
+cd WebAudioHs
 cabal install natural-transformation
 git clone https://github.com/ku-fpg/remote-monad.git
 cd remote-monad/
@@ -27,12 +29,19 @@ cabal install
 Here is a basic program that creates a 200Hz sine wave and plays it
 
 ```haskell
-osc1  <- createOscillator 200 0 Sine
-gain1 <- createGain 0.5
+module Main where
+import Web.Audio
  
-connect $ osc1 .|. gain1 .||. eCtx
+main :: IO ()
+main = do
+  webAudio 3000 $ doc -> do
+    send doc $ do
+      osc1  <- createOscillator 200 0 Sine -- create an OscillatorNode
+      gain1 <- createGain 0.5              -- create a GainNode
 
-start osc1
+      connect $ osc1 .|. gain1 .||. eCtx   -- connect these nodes together, and then connect them to the audio context
+
+      start osc1 -- make sounds!
 ```
 
 ### Other Examples
