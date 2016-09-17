@@ -1,24 +1,11 @@
 <html>
     <head>
-        <title>Kansas Comet Example</title>
+        <title>wahsp session</title>
         <script type="text/javascript" src="js/jquery.js"></script>
         <script type="text/javascript" src="js/jquery-json.js"></script>
         <script type="text/javascript" src="js/kansas-comet.js"></script>
-        <link type="text/css" href="css/ui-lightness/jquery-ui.css" rel="Stylesheet" />
-        <script type="text/javascript" src="js/jquery-ui.js"></script>
     </head>
     <body>
-
-    <div align="center" style="border: 1px solid; padding: 10px; display: inline-block; line-height: 3em;">
-      <button id="reset" class="click">Reset</button>
-      <button id="down" class="click">-1</button>
-      <button id="up" class="click">+1</button>
-      <br/>
-      <span id="fib-out" style="font-size: x-large;" class="click">fib 0 = 1</span>
-      <br/>
-      <div id="slider" style="width: 200px" class="slide"></div>
-    </div>
-
         <div id="no-debug-log"></div>
 
         <script type="text/javascript">
@@ -27,23 +14,6 @@
 	  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 	  var sounds = [];
 	  
-          function CreateOscillator(freq,det,osctype) {
-	      return function(u) {
-		  var osc		= audioCtx.createOscillator();
-		  osc.frequency.value	= freq;
-		  osc.detune.value	= det;
-		  osc.type		= osctype;
-		  
-		  var count		= sounds.push(osc);
-		  var freqParam = "AudioParam Frequency " + (count - 1).toString();
-		  var detParam  = "AudioParam Detune " + (count - 1).toString();
-		  $.kc.reply(u,[count - 1, freqParam, detParam ,osc.type,
-				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
-				osc.channelCountMode, osc.channelInterpretation
-		  	       ]);
-	      }
-	  }
-
           function Value(params) {
 	      return function(u) {
 		  $.kc.reply(u,params.value);
@@ -74,6 +44,7 @@
 	      }
 	  }
 
+	  // create a gain node and store it in sounds[]
           function CreateGain(val) {
 	      return function(u) {
 		  var gainNode		= audioCtx.createGain();
@@ -81,6 +52,7 @@
 		  
 		  var count		= sounds.push(gainNode);
 
+		  // send back to wahsp
 		  $.kc.reply(u,[count - 1,"AudioParam Gain " + (count - 1).toString(),
 				gainNode.numberOfInputs,
 				gainNode.numberOfOutputs, gainNode.channelCount,
@@ -89,10 +61,30 @@
 	      }
 	  }
 
+	  // create an oscillator node and store it in sounds[]
+          function CreateOscillator(freq,det,osctype) {
+	      return function(u) {
+		  var osc		= audioCtx.createOscillator();
+		  osc.frequency.value	= freq;
+		  osc.detune.value	= det;
+		  osc.type		= osctype;
+		  
+		  var count		= sounds.push(osc);
+		  var freqParam = "AudioParam Frequency " + (count - 1).toString();
+	          var detParam  = "AudioParam Detune " + (count - 1).toString();
+
+	          // send back to wahsp
+		  $.kc.reply(u,[count - 1, freqParam, detParam ,osc.type,
+				osc.numberOfInputs, osc.numberOfOutputs, osc.channelCount,
+				osc.channelCountMode, osc.channelInterpretation
+		  	       ]);
+	      }
+	  }
 	  
             $(document).ready(function() {
                 $.kc.connect("/example");
 
+	        /*
                 $("button").button();
 
                 $( "#slider" ).slider({
@@ -101,6 +93,7 @@
                         min: 0,
                         max: 25
                 });
+	        */
             });
         </script>
     </body>

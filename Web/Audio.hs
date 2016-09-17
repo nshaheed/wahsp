@@ -148,21 +148,28 @@ import Web.Scotty
 --        osc1  <- 'createOscillator' 200 0 'Sine' -- create an 'OscillatorNode'
 --        gain1 <- 'createGain' 0.5              -- create a 'GainNode'
 --  
---        'connect' $ osc1 .|. gain1 .||. 'eCtx'   -- connect these nodes together, and then connect them to the audio context
+--        'connect' $ osc1 '.|.' gain1 '.||.' 'eCtx'   -- connect these nodes together, and then connect them to the audio context
 --  
 --        'start' osc1 -- make sounds!
 -- @
 -- 
 -- When running, go to <http://localhost:3000/> in a browser to hear a 200Hz sine wave!
+--
+-- More examples can be found <https://github.com/nshaheed/WebAudioHs/tree/master/examples here>.
 webAudio :: WAOptions -> (KC.Document -> IO ()) -> IO ()
 webAudio opts actions = do
   kcomet <- KC.kCometPlugin -- get comet file path
   dataDir <- getDataDir     -- get data (index.html, etc) file path
 
+  putStrLn (dataDir ++ "/index.html")
+  putStrLn (dataDir ++ "/static/kansas-comet.js")
+
   let pol = only [ ("",dataDir ++ "/index.html")
-                 , (dataDir ++ "/js/kansas-comet.js",kcomet)
-                 ]
-        <|> (hasPrefix "js/") >-> addBase "."
+                   , ("js/kansas-comet.js",kcomet)
+                   , ("js/jquery.js",dataDir ++ "/js/jquery.js")
+                   , ("js/jquery-json.js",dataDir ++ "/js/jquery-json.js")                   
+                   ]
+            <|> (hasPrefix "js/") >-> addBase "."            
 
   let kcopts = KC.Options {KC.prefix = "/example", KC.verbose = if debug opts then 3 else 0}
   
