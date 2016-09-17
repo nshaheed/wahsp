@@ -1,3 +1,5 @@
+-- An example of a basic oscillator
+
 module Main where
 
 import Web.Audio

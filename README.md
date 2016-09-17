@@ -1,8 +1,8 @@
 # wahsp
 
 ### Overview
-@wahsp@ (Web Audio HaSkell Protocol) is a binding for Haskell to the
-[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) ala @blank-canvas@.
+*wahsp* (Web Audio HaSkell Protocol) is a binding for Haskell to the
+[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) ala *blank-canvas@*
 Audio sources, effects, etc. can be combined, manipulated, and otherwise controlled using haskell
 and are then rendered in the the browser (see the above link for browser compatibility).
 
@@ -35,8 +35,20 @@ connect $ osc1 .|. gain1 .||. eCtx
 start osc1
 ```
 
+### Other Examples
+
+Code for examples are located in the `example/` folder.
+
+To install:
+
+```
+cd examples/
+cabal install
+```
+
+The resulting executables are located in `~/.cabal/bin/`
+
 ### Documentation
 
 1. hackage
 2. [Web Audio API documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-3. Examples

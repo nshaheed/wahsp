@@ -167,9 +167,6 @@ webAudio opts actions = do
   kcomet <- KC.kCometPlugin -- get comet file path
   dataDir <- getDataDir     -- get data (index.html, etc) file path
 
-  putStrLn (dataDir ++ "/index.html")
-  putStrLn (dataDir ++ "/static/kansas-comet.js")
-
   let pol = only [ ("",dataDir ++ "/index.html")
                    , ("js/kansas-comet.js",kcomet)
                    , ("js/jquery.js",dataDir ++ "/js/jquery.js")
@@ -187,104 +184,6 @@ webAudio opts actions = do
     connectApp
     
   return()
-
-
--- main :: IO ()
--- main = do
---   webAudio 3000 $ \doc -> do
---     send doc $ do
---       osc1 <- createOscillator 200 0 Sine
---       -- osc2 <- createOscillator 2 0 Sine
---       gain1 <- createGain 0.5
-
---       val <- value (frequencyOsc osc1)
---       def <- defaultValue (frequencyOsc osc1)
---       max <- maxValue (frequencyOsc osc1)
---       min <- minValue (frequencyOsc osc1)
---       -- connecting an oscillator to another oscillator (or and audio source to any other
---       -- audio source) doesn't work, no inlets
---       let g = osc1 .|. gain1 .||. eCtx
---       -- let g' = osc2 .||. eParam (gain gain1)
---       -- traceShow val $ traceShow def $ traceShow max $ traceShow min $
---       connect g
---       -- connect g'
-
---       -- start osc1
---       -- startWhen osc1 2
-
---       -- let x = unsafePerformIO $ threadDelay (1000 * 1000)
-
---       -- disconnectOutput osc1 -- only 0 is output
---       -- disconnectDestParam osc1 (gain gain1) 
---       -- stop osc1
---       -- stopWhen osc1 5
-
---       -- lfoEx
---       setValueTests
---       valueTests
---       return ()
-
-setValueTests = do
-  osc1 <- createOscillator 200 0 Sine
-  gain1 <- createGain 0.5
-
-  setValue (frequencyOsc osc1) 800
-  -- setValueAtTime (frequencyOsc osc1) 200 4
-  -- linearRampToValueAtTime (frequencyOsc osc1) 400 8
-  -- exponentialRampToValueAtTime (frequencyOsc osc1) 400 8
-  setTargetAtTime (frequencyOsc osc1) 400 3 10
-  cancelScheduledValues (frequencyOsc osc1) 2.9
-
-  connect $ osc1 .|. gain1 .||. eCtx
-  
-  start osc1
-  
-valueTests = do
-  osc1 <- createOscillator 200 0 Sine
-  gain1 <- createGain 0.5
-
-  val <- value (frequencyOsc osc1)
-  def <- defaultValue (frequencyOsc osc1)
-  max <- maxValue (frequencyOsc osc1)
-  min <- minValue (frequencyOsc osc1)
-  cur <- currentTime
-  
-  let g = osc1 .|. gain1 .||. eCtx
-  
-  -- traceShow cur $ traceShow val $ traceShow def $ traceShow max $ traceShow min $
-  connect g
-  
-oscillatorEx = do
-  -- initialize an oscillator node and a gain node
-  oscNode  <- createOscillator 440 0 Sine
-  gainNode <- createGain 0.7
-
-  -- connect the oscillator node to the gain node, and then connect the gain node to the
-  -- audio context ( use (.||.) on the last value of the sequence of connections)
-  connect (oscNode .|. gainNode .||. eCtx)
-
-  -- start the oscillator node
-  start oscNode
-
-  -- alternatively, start the oscillator node with a five second delay
-  -- startWhen oscNode 5.0
-  
--- adapted from https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/connect(AudioParam)
-lfoEx = do
-  -- initialize the oscillator, the lfo, and the gain that will be controlled by the lso and
-  -- the oscillator will be routed through
-  osc1  <- createOscillator 400 0 Sine  
-  lfo   <- createOscillator 2 0 Sine
-  gain1 <- createGain 0.5
-
-  
-  connect (lfo .||. eParam (gain gain1)) -- connect the lfo to gain's param value
-  connect (osc1 .||. eNode gain1)        -- connect the oscillator to the gain node
-  connect (gain1 .||. eCtx)              -- connect the gain to the context
-
-  -- start both the oscillators
-  start osc1 
-  start lfo
 
 -- | Connect the front of the chain of nodes together, end the chain with '.||.'
 (.|.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
@@ -448,7 +347,7 @@ runAP :: KC.Document -> ApplicativePacket Command Procedure a -> IO a
 runAP d pkt =
   case AP.superCommand pkt of
     Just a -> do -- is only commands
-      putStrLn ""
+      -- putStrLn ""
       cmds <- handlePacket d pkt ""
       KC.send d cmds
       return a
