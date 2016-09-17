@@ -27,10 +27,10 @@ module Web.Audio
   -- that are connected, input to output, to form a chain 
   -- comprised of sources, effects, and a destination.  The chain is constructed as an 'AudioGraph'
   --
-  -- This chain is typically organized as a /source -> effects -> destination/ where /destination/
+  -- This chain is typically organized as a /source -> effects -> destination/, where /destination/
   -- is either the 'AudioContext' (if you actually want to produce sound in this chain), some
   -- 'AudioParam' (if you want to control a param with an audio signal, e.g. a low-frequency
-  -- oscillator (lfo), or some 'AudioNode'.  
+  -- oscillator (lfo)), or some 'AudioNode'.  
   --
   -- To chain together 'AudioNode's and 'AudioParam's, use '.|.' and end the chain with '.||.'
   -- For example:
@@ -40,7 +40,7 @@ module Web.Audio
   -- gain1 <- 'createGain' 0.5
   -- 
   -- 'connect' $ osc1 .|. gain1 .||. 'eCtx'
-  --
+  -- 'start' osc1
   -- @
   -- See the <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API official docs> for a more
   -- detailed overview.
@@ -60,8 +60,8 @@ module Web.Audio
   , OscillatorNodeType(..)    
   , GainNode(..)
   , AudioParam(..)
-  , ChannelCountMode
-  , AudioParamType
+  , ChannelCountMode(..)
+  , AudioParamType(..)
   -- , showtJS
   -- * Procedures
   -- ** Instantiation functions
@@ -330,7 +330,7 @@ eCtx = EndCtx AudioContext
 -- | A function that returns an 'AudioContext'
 audioContext = AudioContext
 
--- | creates an oscillator with a frequency (in hertz), a detuning value (in cents), and an OscillatorNodeType (e.g. a sine wave, square wave, etc.)
+-- | creates an oscillator with a frequency (in hertz), a detuning value (in cents), and an 'OscillatorNodeType' (e.g. a sine wave, square wave, etc.)
 createOscillator :: Double -- ^ Frequency (in hertz)
                  -> Double -- ^ Detuning (in cents)
                  -> OscillatorNodeType -- ^ Waveform type
@@ -421,7 +421,8 @@ disconnectDestParam src dest = WebAudio . command $ DisconnectDestParam src dest
 disconnectDestParamSpec :: AudioNode a => a -> AudioParam -> Int -> WebAudio ()
 disconnectDestParamSpec src dest idx = WebAudio . command $ DisconnectDestParamSpec src dest idx
 
--- | command to send the 'AudioGraph' to the browser
+-- | Connects the 'AudioGraph' chain (made by connecting 'AudioNode's, 'AudioParam's, and 'AudioContext's
+-- with '.|.' and '.||.')
 connect :: AudioGraph AudNode b -> WebAudio ()
 connect g = WebAudio . command $ Connect g
 

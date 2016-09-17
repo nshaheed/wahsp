@@ -46,6 +46,7 @@ data Procedure     :: * -> * where
   Value            :: AudioParam -> Procedure Double
   CurrentTime      :: Procedure Double 
 
+-- | Contains the commands and procedures to be sent to the web browser
 newtype WebAudio a = WebAudio (RemoteMonad Command Procedure a)
   deriving (Functor, Applicative, Monad)
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Web.Audio.JavaScript where
@@ -42,7 +44,10 @@ instance Show AudioContext where
 
 -- | How channels will be matched between connected inputs and output.
 -- <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode/channelCountMode Detailed description.>
-data ChannelCountMode = Max | ClampedMax | Explicit
+data ChannelCountMode :: * where
+  Max        :: ChannelCountMode
+  ClampedMax :: ChannelCountMode
+  Explicit   :: ChannelCountMode
   deriving (Eq)
 
 instance Show ChannelCountMode where
@@ -65,7 +70,10 @@ instance Read ChannelCountMode where
 
 
 -- | Which type of 'AudioParam'
-data AudioParamType = Gain | Frequency | Detune
+data AudioParamType =
+  Gain |
+  Frequency |
+  Detune
   deriving (Eq,Read)
 
 instance Show AudioParamType where
@@ -122,15 +130,15 @@ instance Show OscillatorNodeType where
 
 -- | OscillatorNode represents a periodic waveform with a frequency (in hertz), detuning (in cents), an OscillatorNodeType (e.g. a sine wave, square wave, etc.), etc.
 data OscillatorNode = OscillatorNode {
-  indexOsc                 :: !Int,
-  frequencyOsc             :: !AudioParam,
-  detuneOsc                :: !AudioParam,
-  typeOsc                  :: !OscillatorNodeType,
-  numberOfInputsOsc        :: !Int,
-  numberOfOutputsOsc       :: !Int,
-  channelCountOsc          :: !Int,
-  channelCountModeOsc      :: !ChannelCountMode,
-  channelInterpretationOsc :: !ChannelInterpretation
+  indexOsc                 :: !Int, -- ^ Index in javascript, for internal use
+  frequencyOsc             :: !AudioParam, -- ^ the frequency of this oscilaltor
+  detuneOsc                :: !AudioParam, -- ^ how many cents the 'frequencyOsc' is detuned by
+  typeOsc                  :: !OscillatorNodeType, -- ^ periodic wave type
+  numberOfInputsOsc        :: !Int, -- ^ number of inputs 
+  numberOfOutputsOsc       :: !Int, -- ^ number of outputs
+  channelCountOsc          :: !Int, -- ^ number of channels used when <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Basic_concepts_behind_Web_Audio_API#Up-mixing_and_down-mixing up-mixing and down-mixing>
+  channelCountModeOsc      :: !ChannelCountMode, -- ^ The 'ChannelCountMode' of this oscillator
+  channelInterpretationOsc :: !ChannelInterpretation -- ^ The 'ChannelInterpretation' of this oscilaltor
 }
   deriving (Read,Show,Eq)
 
