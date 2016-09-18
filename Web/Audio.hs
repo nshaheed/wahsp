@@ -97,7 +97,7 @@ module Web.Audio
   , setTargetAtTime
   , cancelScheduledValues
   ) where
--- WAhsP - Web Audio haskell Package
+-- wahsp - web audio haskell package
 
 -- to add a command:
 -- add to Command data type
@@ -149,7 +149,7 @@ import Web.Scotty
 --  
 --  main :: IO ()
 --  main = do
---    'webAudio' 3000 $ \doc -> do
+--    'webAudio' 3000 $ \\doc -> do
 --      'send' doc $ do
 --        osc1  <- 'createOscillator' 200 0 'Sine' -- create an 'OscillatorNode'
 --        gain1 <- 'createGain' 0.5              -- create a 'GainNode'

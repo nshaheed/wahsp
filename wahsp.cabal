@@ -11,15 +11,26 @@ description:         @wahsp@ (Web Audio HaSkell Protocol) is a binding for Haske
                      controlled using haskell
                      and are then rendered in the the browser (see the above link for browser
                      compatibility).
-
-                     Ex:
+                     .
+                     Example:
+                     .
                      @
-                     osc1  <- createOscillator 200 0 Sine
-                     gain1 <- createGain 0.5
-
-                     connect $ osc1 .|. gain1 .||. eCtx
-                     start osc1
+                        module Main where
+                        import Web.Audio
+                        . 
+                        main :: IO ()
+                        main
+                        main = do
+                        \ \ 'webAudio' 3000 $ \\doc -> do
+                        \ \ 'send' doc $ do                        
+                        \ \ \ \ osc1  <- createOscillator 200 0 Sine
+                        \ \ \ \ gain1 <- createGain 0.5
+                        .
+                        \ \ \ \ connect $ osc1 .|. gain1 .||. eCtx
+                        .
+                        \ \ \ \ start osc1
                      @
+                     .
 homepage:            https://github.com/nshaheed/WebAudioHs/
 Bug-reports:         https://github.com/nshaheed/WebAudioHs/issues                     
 license:             BSD3
