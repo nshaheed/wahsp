@@ -1,4 +1,4 @@
-# wahsp
+# wahsp [![Hackage version](https://img.shields.io/hackage/v/wahsp.svg?style=flat)](http://hackage.haskell.org/package/wahsp)
 
 ### Overview
 *wahsp* (Web Audio HaSkell Protocol) is a binding for Haskell to the
@@ -59,5 +59,5 @@ The resulting executables are located in `~/.cabal/bin/`
 
 ### Documentation
 
-1. hackage
+1. [hackage](https://hackage.haskell.org/package/wahsp)
 2. [Web Audio API documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
