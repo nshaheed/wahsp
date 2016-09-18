@@ -41,7 +41,7 @@ maintainer:          nshaheed@ku.edu
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
+cabal-version:       >=1.22
 tested-with:         GHC == 7.10.3
 data-files:
     index.html
@@ -61,7 +61,7 @@ library
                        TypeOperators
                        KindSignatures
                        GeneralizedNewtypeDeriving
-  build-depends:       base                   >=4.8 && <4.9,
+  build-depends:       base                   >=4.8,
                        stm                    >=2.4 && <2.5,
                        natural-transformation >=0.3 && <0.4,
                        remote-monad           >=0.3 && <0.4,
