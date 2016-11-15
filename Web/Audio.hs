@@ -11,7 +11,7 @@ Stability: Alpha
 @wahsp@ (Web Audio HaSkell Protocol) is a binding for Haskell to the
 <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API Web Audio API> ala @blank-canvas@.
 Audio sources, effects, etc. can be combined, manipulated, and otherwise controlled using haskell
-and are then rendered in the the browser (see the above link for browser compatibility). 
+and are then rendered in the the browser (see the above link for browser compatibility).
 -}
 
 module Web.Audio
@@ -19,18 +19,18 @@ module Web.Audio
     -- * Set-Up
     webAudio
   , WAOptions(..)
-  , send  
+  , send
   -- , AudioGraph(..)
   -- , AudNode(..)
   -- * Connecting nodes, params, and the audio context
   -- | The Web Audio API is comprised of nodes ('AudioNode's, 'AudioParam's, and the 'AudioContext')
-  -- that are connected, input to output, to form a chain 
+  -- that are connected, input to output, to form a chain
   -- comprised of sources, effects, and a destination.
   --
   -- This chain is typically organized as a /source -> effects -> destination/, where /destination/
   -- is either the 'AudioContext' (if you actually want to produce sound in this chain), some
   -- 'AudioParam' (if you want to control a param with an audio signal, e.g. a low-frequency
-  -- oscillator (lfo)), or some 'AudioNode'.  
+  -- oscillator (lfo)), or some 'AudioNode'.
   --
   -- To chain together 'AudioNode's and 'AudioParam's, use '.|.' and end the chain with '.||.'
   -- For example:
@@ -38,26 +38,26 @@ module Web.Audio
   -- @
   -- osc1  <- 'createOscillator' 200 0 'Sine'
   -- gain1 <- 'createGain' 0.5
-  -- 
+  --
   -- 'connect' $ osc1 .|. gain1 .||. 'eCtx'
   -- 'start' osc1
   -- @
   -- See the <https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API official docs> for a more
   -- detailed overview.
   --
-  , connect  
+  , connect
   , (.|.)
   , (.||.)
-  , connector  
-  , connectorLast  
+  , connector
+  , connectorLast
   , eNode
   , eParam
   , eCtx
   -- * Data Types
-  , WebAudio(..)  
+  , WebAudio(..)
   , AudioNode(..)
   , OscillatorNode(..)
-  , OscillatorNodeType(..)    
+  , OscillatorNodeType(..)
   , GainNode(..)
   , AudioParam(..)
   , ChannelCountMode(..)
@@ -68,7 +68,7 @@ module Web.Audio
   , createOscillator
   , createGain
   -- ** Other Procedures
-  , audioContext    
+  , audioContext
   , maxValue
   , minValue
   , value
@@ -146,19 +146,19 @@ import Web.Scotty
 -- @
 --  module Main where
 --  import Web.Audio
---  
+--
 --  main :: IO ()
 --  main = do
 --    'webAudio' 3000 $ \\doc -> do
 --      'send' doc $ do
 --        osc1  <- 'createOscillator' 200 0 'Sine' -- create an 'OscillatorNode'
 --        gain1 <- 'createGain' 0.5              -- create a 'GainNode'
---  
+--
 --        'connect' $ osc1 '.|.' gain1 '.||.' 'eCtx'   -- connect these nodes together, and then connect them to the audio context
---  
+--
 --        'start' osc1 -- make sounds!
 -- @
--- 
+--
 -- When running, go to <http://localhost:3000/> in a browser to hear a 200Hz sine wave!
 --
 -- More examples can be found <https://github.com/nshaheed/WebAudioHs/tree/master/examples here>.
@@ -170,19 +170,19 @@ webAudio opts actions = do
   let pol = only [ ("",dataDir ++ "/index.html")
                    , ("js/kansas-comet.js",kcomet)
                    , ("js/jquery.js",dataDir ++ "/js/jquery.js")
-                   , ("js/jquery-json.js",dataDir ++ "/js/jquery-json.js")                   
+                   , ("js/jquery-json.js",dataDir ++ "/js/jquery-json.js")
                    ]
-            <|> (hasPrefix "js/") >-> addBase "."            
+            <|> (hasPrefix "js/") >-> addBase "."
 
   let kcopts = KC.Options {KC.prefix = "/example", KC.verbose = if debug opts then 3 else 0}
-  
+
   connectApp <- KC.connect kcopts $ \kc_doc -> do
     actions kc_doc
 
   scotty (port opts) $ do
     middleware $ staticPolicy pol
     connectApp
-    
+
   return()
 
 -- | Connect the front of the chain of nodes together, end the chain with '.||.'
@@ -193,7 +193,7 @@ infix 7 .|.
 -- | End the chain of 'AudioNode's.
 --
 -- To end the chain at the audio context:
---  
+--
 -- > connect $ osc1 .|. gain1 .||. eCtx
 --
 -- To end with an 'AudioParam' (that is located in the 'AudioNode' /gain1/):
@@ -203,7 +203,7 @@ infix 7 .|.
 -- To end with the 'AudioNode' /gain1/:
 --
 -- > connect $ osc1 .|. gain1 .||. eNode gain1
-(.||.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
+(.||.) :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
 (.||.) = connectorLast
 
 -- | function implementation of '.|.'
@@ -211,7 +211,7 @@ connector :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph 
 connector node = Node (AudNode node)
 
 -- | function implementation of '.||.'
-connectorLast :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b  
+connectorLast :: forall b a. AudioNode a => a -> AudioGraph AudNode b -> AudioGraph AudNode b
 connectorLast a b = Node (AudNode a) b
 
 infix 8 .||.
@@ -224,7 +224,7 @@ eNode a = EndNode (AudNode a)
 eParam :: AudioParam -> AudioGraph AudNode AudioParam
 eParam = EndParam
 
--- | Set the ending node to the 'AudioContext' 
+-- | Set the ending node to the 'AudioContext'
 eCtx :: AudioGraph AudNode AudioContext
 eCtx = EndCtx AudioContext
 
@@ -239,7 +239,7 @@ audioContext = AudioContext
 createOscillator :: Double -- ^ Frequency (in hertz)
                  -> Double -- ^ Detuning (in cents)
                  -> OscillatorNodeType -- ^ Waveform type
-                 -> WebAudio OscillatorNode 
+                 -> WebAudio OscillatorNode
 createOscillator freq det osctype = WebAudio $ procedure (CreateOscillator freq det osctype)
 
 -- | Create a gain node with a gain value, typically between /0.0/ and /1.0/
@@ -267,7 +267,7 @@ value p = WebAudio $ procedure (Value p)
 currentTime :: WebAudio Double
 currentTime = WebAudio $ procedure (CurrentTime)
 
--- | Immediately start playback of an 'OscillatorNode' 
+-- | Immediately start playback of an 'OscillatorNode'
 start :: OscillatorNode -> WebAudio ()
 start = WebAudio . command . Start
 
@@ -289,14 +289,14 @@ stopWhen o t = WebAudio . command $ StopWhen o t
 disconnect :: AudioNode a => a -> WebAudio ()
 disconnect src = WebAudio . command $ Disconnect src
 
--- | Disconnect a specific output 
+-- | Disconnect a specific output
 disconnectOutput :: AudioNode a => a -> Int -> WebAudio ()
 disconnectOutput src idx = WebAudio . command $ DisconnectOutput src idx
 
 disconnectOutputInput :: AudioNode a => a -> a -> Int -> Int -> WebAudio ()
 disconnectOutputInput src dest output input = WebAudio . command $
                                               DisconnectOutputInput src dest output input
-  
+
 disconnectDestNode :: AudioNode a => a -> a -> WebAudio ()
 disconnectDestNode src dest = WebAudio . command $ DisconnectDestNode src dest
 
@@ -318,7 +318,7 @@ connect g = WebAudio . command $ Connect g
 
 setValue :: AudioParam -> Double -> WebAudio ()
 setValue p val = WebAudio . command $ SetValue p val
-  
+
 setValueAtTime :: AudioParam -> Double -> Double -> WebAudio ()
 setValueAtTime p val startTime = WebAudio . command $ SetValueAtTime p val startTime
 
@@ -332,7 +332,7 @@ exponentialRampToValueAtTime p val endTime = WebAudio . command $
 setTargetAtTime :: AudioParam -> Double -> Double -> Double -> WebAudio ()
 setTargetAtTime p target startTime timeConstant =
   WebAudio . command $ SetTargetAtTime  p target startTime timeConstant
-  
+
 cancelScheduledValues :: AudioParam -> Double -> WebAudio ()
 cancelScheduledValues p startTime = WebAudio . command $ CancelScheduledValues p startTime
 
@@ -340,7 +340,7 @@ send :: KC.Document -> WebAudio a -> IO a
 send = sendApp
 
 sendApp :: KC.Document -> WebAudio a -> IO a
-sendApp d (WebAudio m) = (run $ runMonad $ nat (runAP d)) m
+sendApp d (WebAudio m) = (unwrapNT $ runMonad $ wrapNT (runAP d)) m
 
 -- runAP :: KC.Document -> WebAudio a -> IO a
 runAP :: KC.Document -> ApplicativePacket Command Procedure a -> IO a
@@ -359,7 +359,7 @@ runAP d pkt =
       AP.Procedure p -> sendProcedure d p ""
       AP.Zip f g h   -> f <$> runAP d g <*> runAP d h
       AP.Pure p      -> pure p
-      
+
   where
     handlePacket :: KC.Document -> ApplicativePacket Command Procedure a -> T.Text -> IO T.Text
     handlePacket doc pkt cmds =
@@ -388,7 +388,7 @@ sendProcedure d p@(Value audioParam) _ =
   formatProcedure d p $ "Value(" <> showtJS audioParam <> ")"
 sendProcedure d p@(CurrentTime) _ = formatProcedure d p "GetCurrentTime()"
 
-  
+
 -- take text for function calls to be sent and add generate unique for port
 formatProcedure :: KC.Document -> Procedure a -> T.Text -> IO a
 formatProcedure d p call = do
@@ -440,7 +440,7 @@ formatCommand (SetTargetAtTime p target startTime timeConstant) cmds = return $ 
   showtJS timeConstant <> ");"
 formatCommand (CancelScheduledValues p startTime ) cmds = return $ cmds <>
   showtJS p <> ".cancelScheduledValues(" <> showtJS startTime <> ");"
-  
+
 {-# NOINLINE uniqVar #-}
 uniqVar :: TVar Int
 uniqVar = unsafePerformIO $ newTVarIO 0
