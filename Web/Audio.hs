@@ -112,11 +112,19 @@ module Web.Audio
 
 import Control.Concurrent.STM
 import Control.Natural
-import qualified Control.Remote.Applicative as APP
-import Control.Remote.Monad
+-- import qualified Control.Remote.Applicative as APP
+-- import Control.Remote.Monad
+-- -- import Control.Remote.Monad.Packet.Weak as WP
+-- -- import Control.Remote.Monad.Packet.Strong as SP
+-- import Control.Remote.Monad.Packet.Applicative as AP
+-- -- import Control.Remote.Monad.Packet.Alternative as Alt
+-- -- import qualified Data.Semigroup as SG
+
+import qualified Control.Remote.WithAsync.Applicative as APP
+import Control.Remote.WithAsync.Monad
 -- import Control.Remote.Monad.Packet.Weak as WP
 -- import Control.Remote.Monad.Packet.Strong as SP
-import Control.Remote.Monad.Packet.Applicative as AP
+import Control.Remote.WithAsync.Packet.Applicative as AP
 -- import Control.Remote.Monad.Packet.Alternative as Alt
 -- import qualified Data.Semigroup as SG
 
@@ -125,7 +133,7 @@ import Data.Aeson.Types (Parser,parse,Result(..))
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 
--- import Debug.Trace
+import Debug.Trace
 
 import Network.Wai.Middleware.Static
 
@@ -413,7 +421,9 @@ formatCommand (Start osc) cmds       = return $ cmds <> showtJS osc <> ".start()
 formatCommand (StartWhen osc t) cmds = return $ cmds <> showtJS osc <> ".start(" <> tshow t <> ");"
 formatCommand (Stop osc) cmds        = return $ cmds <> showtJS osc <> ".stop();"
 formatCommand (StopWhen osc t) cmds  = return $ cmds <> showtJS osc <> ".stop(" <> tshow t <> ");"
-formatCommand (Connect g) cmds       = return $ cmds <> audioGraphConnect g <> ";"
+formatCommand (Connect g) cmds       =
+  -- traceShow (audioGraphConnect g) $
+  return $ cmds <> audioGraphConnect g <> ";"
 formatCommand (Disconnect src) cmds  = return $ cmds <> showtJS src <> ".disconnect();"
 formatCommand (DisconnectOutput src idx) cmds = return $ cmds <> showtJS src <>
   ".disconnect(" <> showtJS idx <> ");"

@@ -6,7 +6,8 @@
 module Web.Audio.Packets where
 
 import Control.Monad(liftM2)
-import Control.Remote.Monad
+-- import Control.Remote.Monad
+import Control.Remote.WithAsync.Monad
 
 import Data.Monoid ((<>))
 import qualified Data.Semigroup as SG
@@ -14,6 +15,8 @@ import qualified Data.Text as T
 
 import Web.Audio.JavaScript
 import Web.Audio.WebAudio
+
+import Debug.Trace
 
 data Command :: * where
   Start                        :: OscillatorNode -> Command
@@ -56,7 +59,19 @@ instance Monoid a => Monoid (WebAudio a) where
   mempty  = return mempty
   
 audioGraphConnect :: AudioGraph AudNode b -> T.Text
-audioGraphConnect (Node (AudNode a) g)  = showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
-audioGraphConnect (EndNode (AudNode n)) = showtJS n
-audioGraphConnect (EndParam p)          = showtJS p
-audioGraphConnect (EndCtx c)            = showtJS c <> ".destination"
+-- because the api doesn't allow chaining, you can't compose the connect calls
+audioGraphConnect (Node (AudNode a) g@(Node (AudNode b) _))  =
+  showtJS a <> ".connect(" <> showtJS b <> ");" <> audioGraphConnect g
+audioGraphConnect (Node (AudNode a) g)  =
+  -- traceShow (showtJS a <> ".connect(" <> audioGraphConnect g  <> ")") $ 
+  -- showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"
+  showtJS a <> ".connect(" <> audioGraphConnect g  <> ")"  
+audioGraphConnect (EndNode (AudNode n)) =
+  -- traceShow (showtJS n) $
+  showtJS n
+audioGraphConnect (EndParam p)          =
+  -- traceShow (showtJS p) $
+  showtJS p
+audioGraphConnect (EndCtx c)            =
+  -- traceShow (showtJS c <> ".destination") $
+  showtJS c <> ".destination"

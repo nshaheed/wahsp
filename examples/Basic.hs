@@ -15,5 +15,6 @@ main = do
       -- audio source) doesn't work, as audio sources do not have any inlets
 
       connect $ osc1 .|. gain1 .||. eCtx
+      -- connect $ osc1 .||. eCtx 
 
       start osc1
